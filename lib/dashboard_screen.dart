@@ -237,7 +237,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         min: 0,
                         max: 100000,
                         divisions: 10,
-                        activeColor: Color(0xFF9A7ED0),
+                        activeColor: Color(0xFF6C4FA3),
                         labels: RangeLabels(
                           'Rp ${priceRange.start.round()}',
                           'Rp ${priceRange.end.round()}',
@@ -311,7 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF9A7ED0),
+                          backgroundColor: Color(0xFF6C4FA3),
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -352,7 +352,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isSelected ? Color(0xFF9A7ED0) : Colors.grey[200],
+        color: isSelected ? Color(0xFF6C4FA3) : Colors.grey[200],
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
@@ -372,7 +372,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Color(0xFF9A7ED0) : Colors.grey[200],
+          color: isSelected ? Color(0xFF6C4FA3) : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -457,7 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ? 'Added to favorites'
                                   : 'Removed from favorites',
                             ),
-                            backgroundColor: Color(0xFF9A7ED0),
+                            backgroundColor: Color(0xFF6C4FA3),
                             duration: Duration(seconds: 1),
                           ),
                         );
@@ -467,7 +467,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         height: 24,
                         decoration: BoxDecoration(
                           color: laundry['isFavorite']
-                              ? Color(0xFF9A7ED0)
+                              ? Color(0xFF6C4FA3)
                               : Colors.grey[300],
                           shape: BoxShape.circle,
                         ),
@@ -492,132 +492,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: Icon(
                     Icons.local_laundry_service,
-                    color: Color(0xFF9A7ED0),
+                    color: Color(0xFF6C4FA3),
                     size: 24,
                   ),
                 ),
                 SizedBox(width: 12),
                 Expanded(
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              laundry['name'],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Row(
+                              children: List.generate(5, (index) {
+                                return Icon(
+                                  index < laundry['rating'].floor()
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  color: Colors.amber,
+                                  size: 14,
+                                );
+                              }),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            laundry['name'],
+                            laundry['priceText'],
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Spacer(),
+                          Text(
+                            '/ Per Kg',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          if (laundry['hasPickup'])
+                            Text(
+                              'Free Delivery',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          SizedBox(height: 4),
                           Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: List.generate(5, (index) {
-                              return Icon(
-                                index < laundry['rating'].floor()
-                                    ? Icons.star
-                                    : Icons.star_border,
-                                color: Colors.amber,
-                                size: 14,
-                              );
-                            }),
+                            children: [
+                              if (laundry['services'].contains('Iron'))
+                                Container(
+                                  margin: EdgeInsets.only(right: 4),
+                                  padding: EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[100],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Icon(
+                                    Icons.iron,
+                                    size: 12,
+                                    color: Colors.blue[600],
+                                  ),
+                                ),
+                              Container(
+                                padding: EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.local_shipping,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Distance: ${laundry['distance']}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Open ${laundry['openTime']} - Close ${laundry['closeTime']} (${laundry['days']})',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      Text(
-                        'Open ${laundry['satTime']} (Sat)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      Text(
-                        laundry['sunStatus'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
                     ],
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      laundry['priceText'],
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '/ Per Kg',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    if (laundry['hasPickup'])
-                      Text(
-                        'Free Delivery',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.green,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (laundry['services'].contains('Iron'))
-                          Container(
-                            margin: EdgeInsets.only(right: 4),
-                            padding: EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[100],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Icon(
-                              Icons.iron,
-                              size: 12,
-                              color: Colors.blue[600],
-                            ),
-                          ),
-                        Container(
-                          padding: EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Icon(
-                            Icons.local_shipping,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -626,7 +598,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Color(0xFF9A7ED0),
+              color: Color(0xFF6C4FA3),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(12),
                 bottomRight: Radius.circular(12),
@@ -696,12 +668,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ? 'Pickup/Drop-off enabled'
                                     : 'Pickup/Drop-off disabled',
                               ),
-                              backgroundColor: Color(0xFF9A7ED0),
+                              backgroundColor: Color(0xFF6C4FA3),
                               duration: Duration(seconds: 1),
                             ),
                           );
                         },
-                        activeColor: Color(0xFF9A7ED0),
+                        activeColor: Color(0xFF6C4FA3),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       SizedBox(width: 8),
@@ -813,7 +785,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Color(0xFF9A7ED0),
+                        color: Color(0xFF6C4FA3),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -890,7 +862,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: EdgeInsets.only(right: 8),
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Color(0xFF9A7ED0),
+        color: Color(0xFF6C4FA3),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(

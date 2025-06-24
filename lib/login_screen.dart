@@ -30,6 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false; // Visibility for password in login
   bool _isSignupPasswordVisible = false; // Visibility for signup password
   bool _isConfirmPasswordVisible = false; // Visibility for confirm password
+  bool _isLoading = false;
+
+  // Add role selection
+  String _selectedRole = 'Customer'; // Default role
+  final List<String> _roles = ['Customer', 'Laundry Service'];
 
   @override
   void dispose() {
@@ -42,6 +47,20 @@ class _LoginScreenState extends State<LoginScreen> {
     _confirmPasswordController.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _login() {
+    if (_loginFormKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      // Simulate login delay
+      Future.delayed(Duration(seconds: 2), () {
+        setState(() => _isLoading = false);
+        // TODO: Implement actual authentication logic
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login successful as [1m[35m[4m[3m[9m$_selectedRole[0m!')),
+        );
+      });
+    }
   }
 
   @override
@@ -146,6 +165,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 20),
 
+                        // Role selector
+                        ToggleButtons(
+                          isSelected: _roles.map((role) => _selectedRole == role).toList(),
+                          onPressed: (index) {
+                            setState(() {
+                              _selectedRole = _roles[index];
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          selectedColor: Colors.white,
+                          fillColor: Color(0xFF6C4FA3),
+                          color: Color(0xFF6C4FA3),
+                          children: _roles.map((role) => Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            child: Text(role, style: TextStyle(fontWeight: FontWeight.w600)),
+                          )).toList(),
+                        ),
+
                         // Form to display based on the active tab
                         Expanded(
                           child: _currentTabIndex == 0
@@ -168,13 +205,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       msg: "Continuing as guest...",
                       toastLength: Toast.LENGTH_SHORT,
                       gravity: ToastGravity.BOTTOM,
-                      backgroundColor: const Color(0xFF9A7ED0),
+                      backgroundColor: const Color(0xFF6C4FA3),
                       textColor: Colors.white,
                     );
                     Navigator.pushReplacementNamed(context, '/home');
                   },
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF9A7ED0),
+                    foregroundColor: const Color(0xFF6C4FA3),
                     padding: EdgeInsets.symmetric(horizontal: 8),
                   ),
                   child: const Text(
@@ -266,7 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: InputBorder.none,
-          prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFF9A7ED0), size: 20) : null,
+          prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFF6C4FA3), size: 20) : null,
           suffixIcon: isPassword
               ? IconButton(
             icon: Icon(
@@ -340,12 +377,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   msg: "Password reset link will be sent to your email",
                   toastLength: Toast.LENGTH_SHORT,
                   gravity: ToastGravity.BOTTOM,
-                  backgroundColor: const Color(0xFF9A7ED0),
+                  backgroundColor: const Color(0xFF6C4FA3),
                   textColor: Colors.white,
                 );
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF9A7ED0),
+                foregroundColor: const Color(0xFF6C4FA3),
                 padding: EdgeInsets.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 minimumSize: Size.zero,
@@ -354,7 +391,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Forgotten your password?',
                 style: TextStyle(
                   fontSize: 12,
-                  color: const Color(0xFF9A7ED0),
+                  color: const Color(0xFF6C4FA3),
                 ),
               ),
             ),
@@ -367,19 +404,7 @@ class _LoginScreenState extends State<LoginScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: () {
-                if (_loginFormKey.currentState!.validate()) {
-                  Fluttertoast.showToast(
-                    msg: "Login successful!",
-                    toastLength: Toast.LENGTH_SHORT,
-                    gravity: ToastGravity.BOTTOM,
-                    backgroundColor: const Color(0xFF9A7ED0),
-                    textColor: Colors.white,
-                  );
-
-                  Navigator.pushReplacementNamed(context, '/home');
-                }
-              },
+              onPressed: _isLoading ? null : _login,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFFb296f2),
                 foregroundColor: Colors.black87,
@@ -388,7 +413,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: _isLoading
+                  ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text(
                 'Login',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
@@ -502,7 +529,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       msg: "Registration successful! Please login.",
                       toastLength: Toast.LENGTH_SHORT,
                       gravity: ToastGravity.BOTTOM,
-                      backgroundColor: const Color(0xFF9A7ED0),
+                      backgroundColor: const Color(0xFF6C4FA3),
                       textColor: Colors.white,
                     );
 
@@ -555,7 +582,7 @@ class _LoginScreenState extends State<LoginScreen> {
               bottom: 30,
               left: 50,
               right: 50,
-              child: Container(height: 1, color: const Color(0xFF9A7ED0)),
+              child: Container(height: 1, color: const Color(0xFF6C4FA3)),
             ),
             Positioned(
               left: MediaQuery.of(context).size.width * 0.3,
@@ -565,7 +592,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: const Color(0xFF9A7ED0), width: 1),
+                  border: Border.all(color: const Color(0xFF6C4FA3), width: 1),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -573,22 +600,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       height: 10,
                       margin: const EdgeInsets.only(top: 10, left: 10, right: 10),
-                      color: const Color(0xFF9A7ED0).withOpacity(0.3),
+                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
                     ),
                     Container(
                       height: 5,
                       margin: const EdgeInsets.only(top: 5, left: 10, right: 30),
-                      color: const Color(0xFF9A7ED0).withOpacity(0.3),
+                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
                     ),
                     Container(
                       height: 5,
                       margin: const EdgeInsets.only(top: 5, left: 10, right: 20),
-                      color: const Color(0xFF9A7ED0).withOpacity(0.3),
+                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
                     ),
                     Container(
                       height: 5,
                       margin: const EdgeInsets.only(top: 5, left: 10, right: 15),
-                      color: const Color(0xFF9A7ED0).withOpacity(0.3),
+                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
                     ),
                   ],
                 ),
@@ -602,11 +629,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFDFCEFF).withOpacity(0.5),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF9A7ED0), width: 1),
+                  border: Border.all(color: const Color(0xFF6C4FA3), width: 1),
                 ),
                 child: const Icon(
                   Icons.person_outline,
-                  color: Color(0xFF9A7ED0),
+                  color: Color(0xFF6C4FA3),
                   size: 28,
                 ),
               ),
@@ -633,7 +660,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: const Color(0xFF9A7ED0), width: 1),
+                  border: Border.all(color: const Color(0xFF6C4FA3), width: 1),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -641,17 +668,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       height: 8,
                       margin: const EdgeInsets.only(top: 8, left: 8, right: 8),
-                      color: const Color(0xFF9A7ED0).withOpacity(0.3),
+                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
                     ),
                     Container(
                       height: 4,
                       margin: const EdgeInsets.only(top: 4, left: 8, right: 20),
-                      color: const Color(0xFF9A7ED0).withOpacity(0.3),
+                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
                     ),
                     Container(
                       height: 4,
                       margin: const EdgeInsets.only(top: 4, left: 8, right: 15),
-                      color: const Color(0xFF9A7ED0).withOpacity(0.3),
+                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
                     ),
                   ],
                 ),
@@ -661,7 +688,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 right: 100,
                 child: Icon(
                   Icons.add,
-                  color: const Color(0xFF9A7ED0),
+                  color: const Color(0xFF6C4FA3),
                   size: 18,
                 ),
               ),
@@ -670,7 +697,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 left: 105,
                 child: Icon(
                   Icons.add,
-                  color: const Color(0xFF9A7ED0),
+                  color: const Color(0xFF6C4FA3),
                   size: 18,
                 ),
               ),

@@ -159,7 +159,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           },
                         ),
                       IconButton(
-                        icon: Icon(Icons.qr_code_scanner, color: Color(0xFF9A7ED0)),
+                        icon: Icon(Icons.qr_code_scanner, color: Color(0xFF6C4FA3)),
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -186,10 +186,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: Color(0xFF9A7ED0).withOpacity(0.1),
+                  backgroundColor: Color(0xFF6C4FA3).withOpacity(0.1),
                   child: Icon(
                     Icons.local_shipping,
-                    color: Color(0xFF9A7ED0),
+                    color: Color(0xFF6C4FA3),
                     size: 20,
                   ),
                 ),
@@ -230,13 +230,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               ? 'Pickup & Drop-off enabled'
                               : 'Pickup & Drop-off disabled',
                         ),
-                        backgroundColor: Color(0xFF9A7ED0),
+                        backgroundColor: Color(0xFF6C4FA3),
                         duration: Duration(seconds: 2),
                       ),
                     );
                   },
-                  activeColor: Color(0xFF9A7ED0),
-                  activeTrackColor: Color(0xFF9A7ED0).withOpacity(0.3),
+                  activeColor: Color(0xFF6C4FA3),
+                  activeTrackColor: Color(0xFF6C4FA3).withOpacity(0.3),
                 ),
               ],
             ),
@@ -323,7 +323,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       child: Text(
                         'Clear search',
                         style: TextStyle(
-                          color: Color(0xFF9A7ED0),
+                          color: Color(0xFF6C4FA3),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -388,7 +388,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                             ? 'Added to favorites'
                                             : 'Removed from favorites',
                                       ),
-                                      backgroundColor: Color(0xFF9A7ED0),
+                                      backgroundColor: Color(0xFF6C4FA3),
                                       duration: Duration(seconds: 1),
                                     ),
                                   );
@@ -398,7 +398,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                   height: 32,
                                   decoration: BoxDecoration(
                                     color: service['isFavorite']
-                                        ? Color(0xFF9A7ED0)
+                                        ? Color(0xFF6C4FA3)
                                         : Colors.grey[300],
                                     shape: BoxShape.circle,
                                   ),
@@ -423,7 +423,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                 ),
                                 child: Icon(
                                   Icons.local_laundry_service,
-                                  color: Color(0xFF9A7ED0),
+                                  color: Color(0xFF6C4FA3),
                                   size: 30,
                                 ),
                               ),
@@ -526,7 +526,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           width: double.infinity,
                           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Color(0xFF9A7ED0),
+                            color: Color(0xFF6C4FA3),
                             borderRadius: BorderRadius.only(
                               bottomLeft: Radius.circular(12),
                               bottomRight: Radius.circular(12),

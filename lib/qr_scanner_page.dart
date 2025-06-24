@@ -86,7 +86,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Scanned: $_scanBarcode'),
-                      backgroundColor: Color(0xFF9A7ED0),
+                      backgroundColor: Color(0xFF6C4FA3),
                     ),
                   );
                   return;
@@ -119,7 +119,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
               height: 250,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: Color(0xFF9A7ED0),
+                  color: Color(0xFF6C4FA3),
                   width: 3,
                 ),
                 borderRadius: BorderRadius.circular(20),
@@ -135,8 +135,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
                       height: 30,
                       decoration: BoxDecoration(
                         border: Border(
-                          top: BorderSide(color: Color(0xFF9A7ED0), width: 5),
-                          left: BorderSide(color: Color(0xFF9A7ED0), width: 5),
+                          top: BorderSide(color: Color(0xFF6C4FA3), width: 5),
+                          left: BorderSide(color: Color(0xFF6C4FA3), width: 5),
                         ),
                       ),
                     ),
@@ -149,8 +149,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
                       height: 30,
                       decoration: BoxDecoration(
                         border: Border(
-                          top: BorderSide(color: Color(0xFF9A7ED0), width: 5),
-                          right: BorderSide(color: Color(0xFF9A7ED0), width: 5),
+                          top: BorderSide(color: Color(0xFF6C4FA3), width: 5),
+                          right: BorderSide(color: Color(0xFF6C4FA3), width: 5),
                         ),
                       ),
                     ),
@@ -163,8 +163,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
                       height: 30,
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Color(0xFF9A7ED0), width: 5),
-                          left: BorderSide(color: Color(0xFF9A7ED0), width: 5),
+                          bottom: BorderSide(color: Color(0xFF6C4FA3), width: 5),
+                          left: BorderSide(color: Color(0xFF6C4FA3), width: 5),
                         ),
                       ),
                     ),
@@ -177,8 +177,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
                       height: 30,
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Color(0xFF9A7ED0), width: 5),
-                          right: BorderSide(color: Color(0xFF9A7ED0), width: 5),
+                          bottom: BorderSide(color: Color(0xFF6C4FA3), width: 5),
+                          right: BorderSide(color: Color(0xFF6C4FA3), width: 5),
                         ),
                       ),
                     ),
@@ -206,7 +206,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
                     children: [
                       Icon(
                         Icons.qr_code_scanner,
-                        color: Color(0xFF9A7ED0),
+                        color: Color(0xFF6C4FA3),
                         size: 32,
                       ),
                       SizedBox(height: 10),
@@ -242,7 +242,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
                     borderRadius: BorderRadius.circular(25),
                     gradient: LinearGradient(
                       colors: [
-                        Color(0xFF9A7ED0),
+                        Color(0xFF6C4FA3),
                         Color(0xFFb296f2),
                       ],
                     ),

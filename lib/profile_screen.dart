@@ -30,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
               child: Icon(
                 Icons.person,
                 size: 40,
-                color: Color(0xFF9A7ED0),
+                color: Color(0xFF6C4FA3),
               ),
             ),
             SizedBox(height: 20),
@@ -57,7 +57,7 @@ class ProfileScreen extends StatelessWidget {
                 Navigator.of(context).pushReplacementNamed('/login');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF9A7ED0),
+                backgroundColor: Color(0xFF6C4FA3),
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                 shape: RoundedRectangleBorder(
