@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'api_service.dart';
+import 'config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -49,17 +51,49 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  void _login() async {
     if (_loginFormKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      // Simulate login delay
-      Future.delayed(Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-        // TODO: Implement actual authentication logic
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login successful as [1m[35m[4m[3m[9m$_selectedRole[0m!')),
+      
+      try {
+        final result = await ApiService.login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          role: _selectedRole,
         );
-      });
+
+        setState(() => _isLoading = false);
+
+        if (result['success']) {
+          Fluttertoast.showToast(
+            msg: "Login successful as $_selectedRole!",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: const Color(0xFF6C4FA3),
+            textColor: Colors.white,
+          );
+          
+          // Navigate to home screen
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          Fluttertoast.showToast(
+            msg: result['message'],
+            toastLength: Toast.LENGTH_LONG,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+          );
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        Fluttertoast.showToast(
+          msg: "An error occurred: ${e.toString()}",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+      }
     }
   }
 
@@ -523,30 +557,65 @@ class _LoginScreenState extends State<LoginScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_signupFormKey.currentState!.validate()) {
-                    Fluttertoast.showToast(
-                      msg: "Registration successful! Please login.",
-                      toastLength: Toast.LENGTH_SHORT,
-                      gravity: ToastGravity.BOTTOM,
-                      backgroundColor: const Color(0xFF6C4FA3),
-                      textColor: Colors.white,
-                    );
-
-                    _usernameController.clear();
-                    _phoneController.clear();
-                    _signupEmailController.clear();
-                    _signupPasswordController.clear();
-                    _confirmPasswordController.clear();
-
-                    setState(() {
-                      _currentTabIndex = 0;
-                      _pageController.animateToPage(
-                        0,
-                        duration: Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
+                    setState(() => _isLoading = true);
+                    
+                    try {
+                      final result = await ApiService.register(
+                        username: _usernameController.text.trim(),
+                        email: _signupEmailController.text.trim(),
+                        password: _signupPasswordController.text,
+                        phone: _phoneController.text.trim(),
+                        role: _selectedRole,
                       );
-                    });
+
+                      setState(() => _isLoading = false);
+
+                      if (result['success']) {
+                        Fluttertoast.showToast(
+                          msg: "Registration successful! Please login.",
+                          toastLength: Toast.LENGTH_SHORT,
+                          gravity: ToastGravity.BOTTOM,
+                          backgroundColor: const Color(0xFF6C4FA3),
+                          textColor: Colors.white,
+                        );
+
+                        // Clear form fields
+                        _usernameController.clear();
+                        _phoneController.clear();
+                        _signupEmailController.clear();
+                        _signupPasswordController.clear();
+                        _confirmPasswordController.clear();
+
+                        // Switch to login tab
+                        setState(() {
+                          _currentTabIndex = 0;
+                          _pageController.animateToPage(
+                            0,
+                            duration: Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        });
+                      } else {
+                        Fluttertoast.showToast(
+                          msg: result['message'],
+                          toastLength: Toast.LENGTH_LONG,
+                          gravity: ToastGravity.BOTTOM,
+                          backgroundColor: Colors.red,
+                          textColor: Colors.white,
+                        );
+                      }
+                    } catch (e) {
+                      setState(() => _isLoading = false);
+                      Fluttertoast.showToast(
+                        msg: "An error occurred: ${e.toString()}",
+                        toastLength: Toast.LENGTH_LONG,
+                        gravity: ToastGravity.BOTTOM,
+                        backgroundColor: Colors.red,
+                        textColor: Colors.white,
+                      );
+                    }
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -557,7 +626,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
+                child: _isLoading
+                    ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text(
                   'Sign up',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
