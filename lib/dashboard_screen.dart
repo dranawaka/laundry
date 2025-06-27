@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -10,6 +11,10 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   TextEditingController _searchController = TextEditingController();
   TextEditingController _locationController = TextEditingController();
+
+  // User data
+  String? userName;
+  String? userRole;
 
   bool isPickupDropOffEnabled = false;
   bool isLocationExpanded = false;
@@ -87,6 +92,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     filteredLaundries = List.from(allLaundries);
     _searchController.addListener(_filterLaundries);
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final userData = await ApiService.getCurrentUser();
+    setState(() {
+      userName = userData['name'];
+      userRole = userData['role'];
+    });
   }
 
   @override
@@ -606,12 +620,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Row(
               children: [
-                Text(
-                  laundry['name'],
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    laundry['name'],
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 SizedBox(width: 8),
@@ -621,6 +638,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: Colors.white,
                     fontSize: 12,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Spacer(),
                 Icon(
@@ -640,13 +658,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Dashboard',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          if (userName != null)
+            Container(
+              margin: EdgeInsets.only(right: 16),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Color(0xFF6C4FA3).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.person,
+                    color: Color(0xFF6C4FA3),
+                    size: 16,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    userName!,
+                    style: TextStyle(
+                      color: Color(0xFF6C4FA3),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
             Container(
               color: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: SizedBox.shrink(),
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
             ),
             Container(
               color: Colors.white,

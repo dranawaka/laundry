@@ -534,12 +534,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           ),
                           child: Row(
                             children: [
-                              Text(
-                                service['name'],
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                              Expanded(
+                                child: Text(
+                                  service['name'],
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
                               Spacer(),

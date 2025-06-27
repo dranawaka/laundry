@@ -35,8 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   // Add role selection
-  String _selectedRole = 'Customer'; // Default role
-  final List<String> _roles = ['Customer', 'Laundry Service'];
+  String _selectedRole = 'CUSTOMER'; // Default role - updated to match backend
+  final List<String> _roles = ['CUSTOMER', 'LAUNDRY_SERVICE']; // Updated to match backend format
 
   @override
   void dispose() {
@@ -481,6 +481,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (value.length < 3) {
                   return 'Username must be at least 3 characters';
                 }
+                if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+                  return 'Username can only contain letters, numbers, and underscores';
+                }
                 return null;
               },
             ),
@@ -494,7 +497,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your phone number';
                 }
-                if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(value)) {
+                // Basic phone validation - adjust regex based on your requirements
+                if (!RegExp(r'^\+?[\d\s\-\(\)]{10,}$').hasMatch(value)) {
                   return 'Please enter a valid phone number';
                 }
                 return null;
@@ -528,6 +532,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 }
                 if (value.length < 6) {
                   return 'Password must be at least 6 characters';
+                }
+                // Add more password validation if needed
+                if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(value)) {
+                  return 'Password must contain uppercase, lowercase, and number';
                 }
                 return null;
               },
@@ -574,7 +582,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       if (result['success']) {
                         Fluttertoast.showToast(
-                          msg: "Registration successful! Please login.",
+                          msg: "Registration successful! Welcome ${_usernameController.text.trim()}!",
                           toastLength: Toast.LENGTH_SHORT,
                           gravity: ToastGravity.BOTTOM,
                           backgroundColor: const Color(0xFF6C4FA3),
@@ -588,15 +596,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         _signupPasswordController.clear();
                         _confirmPasswordController.clear();
 
-                        // Switch to login tab
-                        setState(() {
-                          _currentTabIndex = 0;
-                          _pageController.animateToPage(
-                            0,
-                            duration: Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        });
+                        // Navigate directly to home screen since user is now logged in
+                        Navigator.pushReplacementNamed(context, '/home');
                       } else {
                         Fluttertoast.showToast(
                           msg: result['message'],
