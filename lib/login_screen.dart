@@ -35,8 +35,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   // Add role selection
-  String _selectedRole = 'CUSTOMER'; // Default role - updated to match backend
-  final List<String> _roles = ['CUSTOMER', 'LAUNDRY_SERVICE']; // Updated to match backend format
+  String _selectedRole = 'CUSTOMER';
+  final List<String> _roles = ['CUSTOMER', 'LAUNDRY']; // Backend values
+  final Map<String, String> _roleLabels = {
+    'CUSTOMER': 'Customer',
+    'LAUNDRY': 'Laundry Owner',
+  };
 
   @override
   void dispose() {
@@ -213,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Color(0xFF6C4FA3),
                           children: _roles.map((role) => Padding(
                             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            child: Text(role, style: TextStyle(fontWeight: FontWeight.w600)),
+                            child: Text(_roleLabels[role] ?? role, style: TextStyle(fontWeight: FontWeight.w600)),
                           )).toList(),
                         ),
 
@@ -224,36 +228,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               : _buildSignupForm(),
                         ),
                       ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Continue as guest button
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    Fluttertoast.showToast(
-                      msg: "Continuing as guest...",
-                      toastLength: Toast.LENGTH_SHORT,
-                      gravity: ToastGravity.BOTTOM,
-                      backgroundColor: const Color(0xFF6C4FA3),
-                      textColor: Colors.white,
-                    );
-                    Navigator.pushReplacementNamed(context, '/home');
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF6C4FA3),
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  child: const Text(
-                    'Continue as a guest',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      decoration: TextDecoration.underline,
                     ),
                   ),
                 ),

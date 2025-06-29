@@ -57,6 +57,7 @@ class ApiService {
         await prefs.setString('user_phone', data['phone'] ?? '');
         await prefs.setString('user_role', data['role'] ?? '');
         await prefs.setBool('is_logged_in', true);
+        print('Saved user role: \'${data['role']}\''); // Debug print
         
         return {
           'success': true,
@@ -103,7 +104,7 @@ class ApiService {
       return {
         'success': false,
         'message': 'Request timeout: The server took too long to respond. Please try again.',
-      };
+        };
     } on FormatException catch (e) {
       return {
         'success': false,
@@ -223,7 +224,7 @@ class ApiService {
       return {
         'success': false,
         'message': 'Request timeout: The server took too long to respond. Please try again.',
-      };
+        };
     } on FormatException catch (e) {
       return {
         'success': false,
@@ -270,6 +271,7 @@ class ApiService {
   // Get current user info
   static Future<Map<String, String?>> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
+    print('Loaded user role from prefs: \'${prefs.getString('user_role')}\''); // Debug print
     return {
       'id': prefs.getString('user_id'),
       'name': prefs.getString('user_name'),
@@ -295,6 +297,384 @@ class ApiService {
     } catch (e) {
       print('Connection test failed: $e');
       return false;
+    }
+  }
+
+  // Place new order
+  static Future<Map<String, dynamic>> placeOrder({
+    required int customerId,
+    required int laundryId,
+    required DateTime pickupDate,
+    required DateTime deliveryDate,
+    required String pickupAddress,
+    required String deliveryAddress,
+    String? specialInstructions,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/orders/place';
+      print('Placing order to: $url');
+      
+      final requestBody = {
+        'customerId': customerId,
+        'laundryId': laundryId,
+        'pickupDate': pickupDate.toIso8601String(),
+        'deliveryDate': deliveryDate.toIso8601String(),
+        'pickupAddress': pickupAddress,
+        'deliveryAddress': deliveryAddress,
+        'specialInstructions': specialInstructions,
+        'items': items,
+      };
+      
+      print('Order request body: $requestBody');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          ..._headers,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      ).timeout(Duration(seconds: 30));
+      
+      print('Order placement response: ${response.statusCode}');
+      print('Order placement response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+          'message': 'Order placed successfully',
+        };
+      } else {
+        try {
+          final errorData = jsonDecode(response.body);
+          return {
+            'success': false,
+            'message': errorData['error'] ?? errorData['message'] ?? 'Failed to place order',
+          };
+        } catch (_) {
+          return {
+            'success': false,
+            'message': 'Failed to place order: ${response.body}',
+          };
+        }
+      }
+    } catch (e) {
+      print('Error placing order: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get customer orders
+  static Future<Map<String, dynamic>> getCustomerOrders(int customerId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/orders/customer/$customerId';
+      print('Getting customer orders from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Get customer orders response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to fetch orders',
+        };
+      }
+    } catch (e) {
+      print('Error getting customer orders: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get order by ID
+  static Future<Map<String, dynamic>> getOrderById(int orderId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/orders/$orderId';
+      print('Getting order from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Get order response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to fetch order',
+        };
+      }
+    } catch (e) {
+      print('Error getting order: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get laundry orders (for laundry owners)
+  static Future<Map<String, dynamic>> getLaundryOrders(int laundryId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/orders/laundry/$laundryId';
+      print('Getting laundry orders from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Get laundry orders response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to fetch orders',
+        };
+      }
+    } catch (e) {
+      print('Error getting laundry orders: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get nearby laundry services
+  static Future<Map<String, dynamic>> getNearbyServices({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 10.0,
+  }) async {
+    try {
+      final url = Uri.parse(Config.getApiUrl(Config.nearbyServicesEndpoint)).replace(
+        queryParameters: {
+          'latitude': latitude.toString(),
+          'longitude': longitude.toString(),
+          'radiusKm': radiusKm.toString(),
+        },
+      );
+      
+      print('=== NEARBY SERVICES DEBUG INFO ===');
+      print('Fetching nearby services from: $url');
+      
+      final response = await http.get(
+        url,
+        headers: _headers,
+      ).timeout(Duration(milliseconds: Config.connectionTimeout));
+
+      print('Nearby services response status: ${response.statusCode}');
+      print('Nearby services response body: ${response.body}');
+      print('=== END NEARBY SERVICES DEBUG ===');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': data,
+          'message': 'Nearby services fetched successfully',
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        String errorMessage = 'Failed to fetch nearby services';
+        
+        if (errorData is Map<String, dynamic>) {
+          errorMessage = errorData['message'] ?? errorData['error'] ?? errorMessage;
+        }
+        
+        return {
+          'success': false,
+          'message': errorMessage,
+          'statusCode': response.statusCode,
+        };
+      }
+    } on SocketException catch (e) {
+      print('=== CONNECTION ERROR ===');
+      print('SocketException: ${e.message}');
+      print('=== END CONNECTION ERROR ===');
+      
+      return {
+        'success': false,
+        'message': 'Connection failed: Unable to reach the server.',
+      };
+    } on TimeoutException catch (e) {
+      return {
+        'success': false,
+        'message': 'Request timeout: The server took too long to respond.',
+      };
+    } on FormatException catch (e) {
+      return {
+        'success': false,
+        'message': 'Invalid response format from server: ${e.message}',
+      };
+    } catch (e) {
+      print('=== UNEXPECTED ERROR ===');
+      print('Error type: ${e.runtimeType}');
+      print('Error message: ${e.toString()}');
+      print('=== END UNEXPECTED ERROR ===');
+      
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Laundry Service Management APIs
+  static Future<List<dynamic>> getServicesByLaundry(int laundryId) async {
+    try {
+      final url = Config.getApiUrl('/laundry-services/laundry/$laundryId');
+      print('=== GET SERVICES BY LAUNDRY DEBUG ===');
+      print('Fetching services for laundry ID: $laundryId');
+      print('URL: $url');
+      
+      final response = await http.get(
+        Uri.parse(url), 
+        headers: _headers,
+      ).timeout(Duration(milliseconds: Config.connectionTimeout));
+      
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('Parsed data: $data');
+        print('Data type: ${data.runtimeType}');
+        
+        if (data is List) {
+          print('Services found: ${data.length}');
+          print('=== END GET SERVICES BY LAUNDRY DEBUG ===');
+          return data;
+        } else {
+          print('Unexpected data format. Expected List, got ${data.runtimeType}');
+          print('=== END GET SERVICES BY LAUNDRY DEBUG ===');
+          return [];
+        }
+      } else {
+        print('Error response: ${response.statusCode} - ${response.body}');
+        print('=== END GET SERVICES BY LAUNDRY DEBUG ===');
+        throw Exception('Failed to load services: ${response.statusCode}');
+      }
+    } on SocketException catch (e) {
+      print('=== CONNECTION ERROR ===');
+      print('SocketException: ${e.message}');
+      print('=== END CONNECTION ERROR ===');
+      throw Exception('Connection failed: Unable to reach the server.');
+    } on TimeoutException catch (e) {
+      print('=== TIMEOUT ERROR ===');
+      print('TimeoutException: ${e.message}');
+      print('=== END TIMEOUT ERROR ===');
+      throw Exception('Request timeout: The server took too long to respond.');
+    } on FormatException catch (e) {
+      print('=== FORMAT ERROR ===');
+      print('FormatException: ${e.message}');
+      print('=== END FORMAT ERROR ===');
+      throw Exception('Invalid response format from server: ${e.message}');
+    } catch (e) {
+      print('=== UNEXPECTED ERROR ===');
+      print('Error type: ${e.runtimeType}');
+      print('Error message: ${e.toString()}');
+      print('=== END UNEXPECTED ERROR ===');
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
+  static Future<Map<String, dynamic>> createLaundryService(int laundryId, Map<String, dynamic> data) async {
+    final url = Config.getApiUrl('/laundry-services/$laundryId');
+    final response = await http.post(Uri.parse(url), headers: _headers, body: jsonEncode(data));
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> updateLaundryService(int serviceId, int laundryId, Map<String, dynamic> data) async {
+    final url = Config.getApiUrl('/laundry-services/$serviceId/laundry/$laundryId');
+    final response = await http.put(Uri.parse(url), headers: _headers, body: jsonEncode(data));
+    return jsonDecode(response.body);
+  }
+
+  static Future<void> deleteLaundryService(int serviceId, int laundryId) async {
+    final url = Config.getApiUrl('/laundry-services/$serviceId/laundry/$laundryId');
+    final response = await http.delete(Uri.parse(url), headers: _headers);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete service');
+    }
+  }
+
+  static Future<Map<String, dynamic>> toggleServiceAvailability(int serviceId, int laundryId) async {
+    final url = Config.getApiUrl('/laundry-services/$serviceId/laundry/$laundryId/toggle-availability');
+    final response = await http.put(Uri.parse(url), headers: _headers);
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> updateOrderStatus(int orderId, String status) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/orders/$orderId/update-status';
+      print('Updating order status at: $url');
+      final response = await http.put(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode({'status': status}),
+      ).timeout(Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'message': data['message'] ?? 'Order status updated'};
+      } else {
+        final data = jsonDecode(response.body);
+        return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Failed to update status'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> cancelOrder(int orderId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/orders/$orderId/cancel';
+      print('Cancelling order at: $url');
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'message': data['message'] ?? 'Order canceled successfully'};
+      } else {
+        final data = jsonDecode(response.body);
+        return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Failed to cancel order'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
     }
   }
 } 

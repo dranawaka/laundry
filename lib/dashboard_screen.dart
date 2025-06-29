@@ -1,20 +1,34 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'order_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
+
+  // Static getter for global access
+  static List<Map<String, dynamic>> get favoriteLaundriesGlobal => _DashboardScreenState._favoriteLaundriesStatic;
 
   @override
   _DashboardScreenState createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  static List<Map<String, dynamic>> _favoriteLaundriesStatic = [];
+  List<Map<String, dynamic>> favoriteLaundries = _favoriteLaundriesStatic;
+
   TextEditingController _searchController = TextEditingController();
   TextEditingController _locationController = TextEditingController();
 
   // User data
   String? userName;
   String? userRole;
+
+  // Location and services data
+  Position? currentPosition;
+  bool isLoadingLocation = false;
+  bool isLoadingServices = false;
+  String? locationError;
 
   bool isPickupDropOffEnabled = false;
   bool isLocationExpanded = false;
@@ -36,6 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Map<String, dynamic>> allLaundries = [
     {
+      'id': 1,
       'name': 'Laundry Mama',
       'distance': '10 KM',
       'rating': 4.5,
@@ -52,6 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'isFavorite': false,
     },
     {
+      'id': 2,
       'name': 'Laundry Mama 2',
       'distance': '15 KM',
       'rating': 4.0,
@@ -68,6 +84,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'isFavorite': false,
     },
     {
+      'id': 3,
       'name': 'Laundry Mama 3',
       'distance': '20 KM',
       'rating': 3.5,
@@ -93,6 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     filteredLaundries = List.from(allLaundries);
     _searchController.addListener(_filterLaundries);
     _loadUserData();
+    _getCurrentLocation();
   }
 
   Future<void> _loadUserData() async {
@@ -101,6 +119,148 @@ class _DashboardScreenState extends State<DashboardScreen> {
       userName = userData['name'];
       userRole = userData['role'];
     });
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      isLoadingLocation = true;
+      locationError = null;
+    });
+
+    try {
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          locationError = 'Location services are disabled.';
+          isLoadingLocation = false;
+        });
+        return;
+      }
+
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            locationError = 'Location permissions are denied.';
+            isLoadingLocation = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          locationError = 'Location permissions are permanently denied.';
+          isLoadingLocation = false;
+        });
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        currentPosition = position;
+        isLoadingLocation = false;
+      });
+
+      // Fetch nearby services
+      _fetchNearbyServices();
+    } catch (e) {
+      setState(() {
+        locationError = 'Failed to get location: ${e.toString()}';
+        isLoadingLocation = false;
+      });
+    }
+  }
+
+  Future<void> _fetchNearbyServices() async {
+    if (currentPosition == null) return;
+
+    setState(() {
+      isLoadingServices = true;
+    });
+
+    try {
+      final result = await ApiService.getNearbyServices(
+        latitude: currentPosition!.latitude,
+        longitude: currentPosition!.longitude,
+        radiusKm: 10.0,
+      );
+
+      if (result['success']) {
+        final servicesData = result['data'];
+        List<Map<String, dynamic>> services = [];
+        
+        if (servicesData is List) {
+          services = servicesData.map((service) {
+            return {
+              'id': service['id'],
+              'name': service['name'] ?? 'Unknown Service',
+              'distance': '${_calculateDistance(service['latitude'], service['longitude']).toStringAsFixed(1)} KM',
+              'rating': service['rating']?.toDouble() ?? 0.0,
+              'price': service['price']?.toInt() ?? 0,
+              'priceText': 'Rp ${service['price']?.toString() ?? '0'}',
+              'services': service['services'] ?? [],
+              'isOpen': service['isOpen'] ?? true,
+              'hasPickup': service['hasPickup'] ?? false,
+              'openTime': service['openTime'] ?? '8 am',
+              'closeTime': service['closeTime'] ?? '8 pm',
+              'days': service['days'] ?? 'Mon - Fri',
+              'satTime': service['satTime'] ?? '8 am - 5 pm',
+              'sunStatus': service['sunStatus'] ?? 'Closed on Sunday',
+              'isFavorite': false,
+            };
+          }).toList();
+        }
+
+        setState(() {
+          allLaundries = services;
+          filteredLaundries = List.from(allLaundries);
+          isLoadingServices = false;
+        });
+      } else {
+        setState(() {
+          isLoadingServices = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        isLoadingServices = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to fetch nearby services: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  double _calculateDistance(double? serviceLat, double? serviceLng) {
+    if (serviceLat == null || serviceLng == null || currentPosition == null) {
+      return 0.0;
+    }
+    
+    return Geolocator.distanceBetween(
+      currentPosition!.latitude,
+      currentPosition!.longitude,
+      serviceLat,
+      serviceLng,
+    ) / 1000; // Convert to kilometers
   }
 
   @override
@@ -422,7 +582,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildLaundryCard(Map<String, dynamic> laundry) {
-    return Container(
+    bool isFavorite = favoriteLaundries.any((fav) => fav['name'] == laundry['name']);
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OrderScreen(laundry: laundry),
+          ),
+        );
+      },
+      child: Container(
       margin: EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -436,13 +606,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      child: Column(
+        child: Stack(
+          children: [
+            Column(
         children: [
           Padding(
             padding: EdgeInsets.all(12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                      // Favorite icon
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (isFavorite) {
+                              favoriteLaundries.removeWhere((fav) => fav['name'] == laundry['name']);
+                              _favoriteLaundriesStatic.removeWhere((fav) => fav['name'] == laundry['name']);
+                            } else {
+                              favoriteLaundries.add(laundry);
+                              _favoriteLaundriesStatic.add(laundry);
+                            }
+                          });
+                        },
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: isFavorite ? Color(0xFF6C4FA3) : Colors.grey[300],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
                 Column(
                   children: [
                     Container(
@@ -620,15 +820,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Row(
               children: [
-                Expanded(
-                  child: Text(
-                    laundry['name'],
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                      Expanded(
+                        child: Text(
+                  laundry['name'],
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 SizedBox(width: 8),
@@ -638,7 +838,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: Colors.white,
                     fontSize: 12,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                 ),
                 Spacer(),
                 Icon(
@@ -650,6 +850,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -670,6 +873,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.refresh,
+              color: Color(0xFF6C4FA3),
+            ),
+            onPressed: () {
+              _getCurrentLocation();
+            },
+          ),
           if (userName != null)
             Container(
               margin: EdgeInsets.only(right: 16),
@@ -872,7 +1084,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             Expanded(
-              child: filteredLaundries.isEmpty && _searchController.text.isNotEmpty
+              child: isLoadingLocation || isLoadingServices
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            color: Color(0xFF6C4FA3),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            isLoadingLocation 
+                                ? 'Getting your location...'
+                                : 'Loading nearby services...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : locationError != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.location_off,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Location Error',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 32),
+                                child: Text(
+                                  locationError!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _getCurrentLocation,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFF6C4FA3),
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : filteredLaundries.isEmpty && _searchController.text.isNotEmpty
                   ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -894,6 +1170,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     SizedBox(height: 8),
                     Text(
                       'Try searching with different keywords',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : filteredLaundries.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.local_laundry_service,
+                                        size: 64,
+                                        color: Colors.grey[400],
+                                      ),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'No nearby laundry services',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Try expanding your search radius',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[500],

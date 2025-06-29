@@ -30,6 +30,9 @@ class Config {
   static const String updateProfileEndpoint = '/api/user/update';
   static const String changePasswordEndpoint = '/api/user/change-password';
   
+  // Laundry services endpoints
+  static const String nearbyServicesEndpoint = '/laundry/services/nearby';
+  
   // Spring Boot specific endpoints (if using different naming conventions)
   static const String springLoginEndpoint = '/api/auth/signin';
   static const String springRegisterEndpoint = '/api/auth/signup';
@@ -38,6 +41,9 @@ class Config {
   // Timeout configurations
   static const int connectionTimeout = 30000; // 30 seconds
   static const int receiveTimeout = 30000; // 30 seconds
+
+  // Orders endpoints
+  // Use /orders/place for placing a new order (POST)
 
   // Get the full URL for an endpoint
   static String getApiUrl(String endpoint) {
