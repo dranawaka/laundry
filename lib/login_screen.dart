@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'api_service.dart';
 import 'config.dart';
+import 'fcm_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -69,16 +70,26 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isLoading = false);
 
         if (result['success']) {
+          // Update FCM token for existing user after successful login
+          await _updateFCMTokenAfterLogin(result['data']['id']);
+          
           Fluttertoast.showToast(
             msg: "Login successful as $_selectedRole!",
             toastLength: Toast.LENGTH_SHORT,
             gravity: ToastGravity.BOTTOM,
-            backgroundColor: const Color(0xFF6C4FA3),
+            backgroundColor: const Color(0xFF424242), // Dark gray
             textColor: Colors.white,
           );
           
           // Navigate to home screen
           Navigator.pushReplacementNamed(context, '/home');
+          
+          // For customers, redirect to favorites screen after a short delay
+          if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+            Future.delayed(Duration(milliseconds: 500), () {
+              // This will be handled by the main screen which shows favorites first for customers
+            });
+          }
         } else {
           Fluttertoast.showToast(
             msg: result['message'],
@@ -98,6 +109,237 @@ class _LoginScreenState extends State<LoginScreen> {
           textColor: Colors.white,
         );
       }
+    }
+  }
+
+  // Register FCM token with backend
+  Future<void> _registerFCMToken(String userId) async {
+    try {
+      final result = await FCMService().registerTokenWithBackend(userId);
+      if (result['success']) {
+        print('FCM token registered successfully');
+      } else {
+        print('Failed to register FCM token: ${result['message']}');
+      }
+    } catch (e) {
+      print('Error registering FCM token: $e');
+    }
+  }
+
+  // Update FCM token for existing user after login
+  Future<void> _updateFCMTokenAfterLogin(String userId) async {
+    try {
+      print('=== FCM TOKEN UPDATE AFTER LOGIN ===');
+      print('User ID: $userId');
+      print('User Role: $_selectedRole');
+      
+      // Role-specific logging
+      if (_selectedRole.toUpperCase() == 'LAUNDRY') {
+        print('🏪 Laundry Owner Login - FCM Token Update');
+        print('Laundry owners need FCM tokens for:');
+        print('- New order notifications');
+        print('- Order status updates');
+        print('- Customer inquiries');
+      } else if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+        print('👤 Customer Login - FCM Token Update');
+        print('Customers need FCM tokens for:');
+        print('- Order status updates');
+        print('- Service notifications');
+        print('- Promotional messages');
+      }
+      
+      // Use the comprehensive FCM service method
+      final result = await FCMService().comprehensiveTokenUpdate(userId);
+      
+      if (result['success']) {
+        print('✅ FCM token updated successfully after login');
+        print('Response: ${result['message']}');
+        print('Step: ${result['step']}');
+        
+        // Role-specific success messages
+        if (_selectedRole.toUpperCase() == 'LAUNDRY') {
+          print('🏪 Laundry owner FCM token registered successfully');
+          print('Ready to receive new order notifications');
+        } else if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+          print('👤 Customer FCM token registered successfully');
+          print('Ready to receive order updates and notifications');
+        }
+        
+        // Log token status for debugging
+        final tokenStatus = FCMService().getTokenStatus();
+        print('Token Status: $tokenStatus');
+        
+        // Subscribe to role-specific topics
+        await _subscribeToRoleTopics();
+        
+      } else {
+        print('❌ Failed to update FCM token after login');
+        print('Error: ${result['message']}');
+        print('Step: ${result['step']}');
+        
+        // Role-specific error handling
+        if (_selectedRole.toUpperCase() == 'LAUNDRY') {
+          print('🏪 Laundry owner FCM token update failed');
+          print('This may affect new order notifications');
+        } else if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+          print('👤 Customer FCM token update failed');
+          print('This may affect order status notifications');
+        }
+        
+        // Log detailed debug information
+        if (result['loginStatus'] != null) {
+          print('Login Status: ${result['loginStatus']}');
+        }
+        if (result['tokenStatus'] != null) {
+          print('Token Status: ${result['tokenStatus']}');
+        }
+        if (result['apiTest'] != null) {
+          print('API Test: ${result['apiTest']}');
+        }
+        if (result['updateResult'] != null) {
+          print('Update Result: ${result['updateResult']}');
+        }
+        if (result['regResult'] != null) {
+          print('Registration Result: ${result['regResult']}');
+        }
+        
+        // Try alternative method - force refresh token
+        print('Trying alternative method - force refresh token...');
+        final refreshResult = await FCMService().forceRefreshToken();
+        if (refreshResult != null) {
+          print('✅ Token refreshed successfully, retrying update...');
+          final retryResult = await FCMService().comprehensiveTokenUpdate(userId);
+          if (retryResult['success']) {
+            print('✅ FCM token update successful after retry');
+            // Subscribe to role-specific topics after successful retry
+            await _subscribeToRoleTopics();
+          } else {
+            print('❌ FCM token update still failed after retry: ${retryResult['message']}');
+          }
+        } else {
+          print('❌ Failed to refresh FCM token');
+        }
+      }
+      
+      print('=== END FCM TOKEN UPDATE ===');
+      
+    } catch (e) {
+      print('❌ Error updating FCM token after login: $e');
+      print('Error type: ${e.runtimeType}');
+      
+      // Don't show error to user as this is not critical for login
+      // Just log it for debugging purposes
+    }
+  }
+
+  // Subscribe to role-specific FCM topics
+  Future<void> _subscribeToRoleTopics() async {
+    try {
+      print('🎯 Using FCM service to subscribe to role-specific topics...');
+      await FCMService().subscribeToRoleTopics(_selectedRole);
+    } catch (e) {
+      print('⚠️ Error subscribing to role topics: $e');
+      // Don't fail the login process for topic subscription errors
+    }
+  }
+
+  // Update FCM token for new user after registration
+  Future<void> _updateFCMTokenAfterRegistration(String userId) async {
+    try {
+      print('=== FCM TOKEN UPDATE AFTER REGISTRATION ===');
+      print('User ID: $userId');
+      print('User Role: $_selectedRole');
+      
+      // Role-specific logging
+      if (_selectedRole.toUpperCase() == 'LAUNDRY') {
+        print('🏪 Laundry Owner Registration - FCM Token Update');
+        print('Setting up FCM for new laundry owner account');
+      } else if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+        print('👤 Customer Registration - FCM Token Update');
+        print('Setting up FCM for new customer account');
+      }
+      
+      // Use the comprehensive FCM service method
+      final result = await FCMService().comprehensiveTokenUpdate(userId);
+      
+      if (result['success']) {
+        print('✅ FCM token updated successfully after registration');
+        print('Response: ${result['message']}');
+        print('Step: ${result['step']}');
+        
+        // Role-specific success messages
+        if (_selectedRole.toUpperCase() == 'LAUNDRY') {
+          print('🏪 New laundry owner FCM token registered successfully');
+          print('Ready to receive new order notifications');
+        } else if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+          print('👤 New customer FCM token registered successfully');
+          print('Ready to receive order updates and notifications');
+        }
+        
+        // Log token status for debugging
+        final tokenStatus = FCMService().getTokenStatus();
+        print('Token Status: $tokenStatus');
+        
+        // Subscribe to role-specific topics
+        await _subscribeToRoleTopics();
+        
+      } else {
+        print('❌ Failed to update FCM token after registration');
+        print('Error: ${result['message']}');
+        print('Step: ${result['step']}');
+        
+        // Role-specific error handling
+        if (_selectedRole.toUpperCase() == 'LAUNDRY') {
+          print('🏪 New laundry owner FCM token update failed');
+          print('This may affect new order notifications');
+        } else if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+          print('👤 New customer FCM token update failed');
+          print('This may affect order status notifications');
+        }
+        
+        // Log detailed debug information
+        if (result['loginStatus'] != null) {
+          print('Login Status: ${result['loginStatus']}');
+        }
+        if (result['tokenStatus'] != null) {
+          print('Token Status: ${result['tokenStatus']}');
+        }
+        if (result['apiTest'] != null) {
+          print('API Test: ${result['apiTest']}');
+        }
+        if (result['updateResult'] != null) {
+          print('Update Result: ${result['updateResult']}');
+        }
+        if (result['regResult'] != null) {
+          print('Registration Result: ${result['regResult']}');
+        }
+        
+        // Try alternative method - force refresh token
+        print('Trying alternative method - force refresh token...');
+        final refreshResult = await FCMService().forceRefreshToken();
+        if (refreshResult != null) {
+          print('✅ Token refreshed successfully, retrying update...');
+          final retryResult = await FCMService().comprehensiveTokenUpdate(userId);
+          if (retryResult['success']) {
+            print('✅ FCM token update successful after retry');
+            // Subscribe to role-specific topics after successful retry
+            await _subscribeToRoleTopics();
+          } else {
+            print('❌ FCM token update still failed after retry: ${retryResult['message']}');
+          }
+        } else {
+          print('❌ Failed to refresh FCM token');
+        }
+      }
+      
+      print('=== END FCM TOKEN UPDATE ===');
+      
+    } catch (e) {
+      print('❌ Error updating FCM token after registration: $e');
+      print('Error type: ${e.runtimeType}');
+      
+      // Don't show error to user as this is not critical for registration
+      // Just log it for debugging purposes
     }
   }
 
@@ -213,8 +455,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                           borderRadius: BorderRadius.circular(12),
                           selectedColor: Colors.white,
-                          fillColor: Color(0xFF6C4FA3),
-                          color: Color(0xFF6C4FA3),
+                          fillColor: Color(0xFF424242),
+                          color: Color(0xFF424242),
                           children: _roles.map((role) => Padding(
                             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                             child: Text(_roleLabels[role] ?? role, style: TextStyle(fontWeight: FontWeight.w600)),
@@ -311,7 +553,7 @@ class _LoginScreenState extends State<LoginScreen> {
           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: InputBorder.none,
-          prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFF6C4FA3), size: 20) : null,
+          prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFF424242), size: 20) : null,
           suffixIcon: isPassword
               ? IconButton(
             icon: Icon(
@@ -385,12 +627,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   msg: "Password reset link will be sent to your email",
                   toastLength: Toast.LENGTH_SHORT,
                   gravity: ToastGravity.BOTTOM,
-                  backgroundColor: const Color(0xFF6C4FA3),
+                  backgroundColor: const Color(0xFF424242), // Dark gray
                   textColor: Colors.white,
                 );
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF6C4FA3),
+                foregroundColor: const Color(0xFF424242), // Dark gray
                 padding: EdgeInsets.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 minimumSize: Size.zero,
@@ -399,7 +641,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Forgotten your password?',
                 style: TextStyle(
                   fontSize: 12,
-                  color: const Color(0xFF6C4FA3),
+                  color: const Color(0xFF424242), // Dark gray
                 ),
               ),
             ),
@@ -414,7 +656,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _login,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFb296f2),
+                backgroundColor: Color(0xFFE0E0E0),
                 foregroundColor: Colors.black87,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -544,22 +786,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     setState(() => _isLoading = true);
                     
                     try {
+                      // Get FCM token for registration using enhanced method
+                      final fcmToken = await FCMService().getCurrentToken(forceRefresh: true);
+                      print('FCM Token for registration: ${fcmToken != null ? '${fcmToken.substring(0, 20)}...' : 'null'}');
+                      
                       final result = await ApiService.register(
                         username: _usernameController.text.trim(),
                         email: _signupEmailController.text.trim(),
                         password: _signupPasswordController.text,
                         phone: _phoneController.text.trim(),
                         role: _selectedRole,
+                        fcmToken: fcmToken, // Pass FCM token to registration
                       );
 
                       setState(() => _isLoading = false);
 
                       if (result['success']) {
+                        // Update FCM token after successful registration
+                        if (result['data'] != null && result['data']['id'] != null) {
+                          await _updateFCMTokenAfterRegistration(result['data']['id']);
+                        }
+                        
                         Fluttertoast.showToast(
                           msg: "Registration successful! Welcome ${_usernameController.text.trim()}!",
                           toastLength: Toast.LENGTH_SHORT,
                           gravity: ToastGravity.BOTTOM,
-                          backgroundColor: const Color(0xFF6C4FA3),
+                          backgroundColor: const Color(0xFF424242), // Dark gray
                           textColor: Colors.white,
                         );
 
@@ -572,6 +824,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // Navigate directly to home screen since user is now logged in
                         Navigator.pushReplacementNamed(context, '/home');
+                        
+                        // For customers, ensure favorites are initialized
+                        if (_selectedRole.toUpperCase() == 'CUSTOMER') {
+                          Future.delayed(Duration(milliseconds: 500), () {
+                            // This will be handled by the main screen which shows favorites first for customers
+                          });
+                        }
                       } else {
                         Fluttertoast.showToast(
                           msg: result['message'],
@@ -594,7 +853,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFb296f2),
+                  backgroundColor: Color(0xFFE0E0E0),
                   foregroundColor: Colors.black87,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -628,7 +887,7 @@ class _LoginScreenState extends State<LoginScreen> {
               bottom: 30,
               left: 50,
               right: 50,
-              child: Container(height: 1, color: const Color(0xFF6C4FA3)),
+              child: Container(height: 1, color: const Color(0xFF424242)),
             ),
             Positioned(
               left: MediaQuery.of(context).size.width * 0.3,
@@ -638,7 +897,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: const Color(0xFF6C4FA3), width: 1),
+                  border: Border.all(color: const Color(0xFF424242), width: 1),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -646,22 +905,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       height: 10,
                       margin: const EdgeInsets.only(top: 10, left: 10, right: 10),
-                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
+                      color: const Color(0xFF424242).withOpacity(0.3),
                     ),
                     Container(
                       height: 5,
                       margin: const EdgeInsets.only(top: 5, left: 10, right: 30),
-                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
+                      color: const Color(0xFF424242).withOpacity(0.3),
                     ),
                     Container(
                       height: 5,
                       margin: const EdgeInsets.only(top: 5, left: 10, right: 20),
-                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
+                      color: const Color(0xFF424242).withOpacity(0.3),
                     ),
                     Container(
                       height: 5,
                       margin: const EdgeInsets.only(top: 5, left: 10, right: 15),
-                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
+                      color: const Color(0xFF424242).withOpacity(0.3),
                     ),
                   ],
                 ),
@@ -673,13 +932,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDFCEFF).withOpacity(0.5),
+                  color: const Color(0xFFF5F5F5).withOpacity(0.5),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF6C4FA3), width: 1),
+                  border: Border.all(color: const Color(0xFF424242), width: 1),
                 ),
                 child: const Icon(
                   Icons.person_outline,
-                  color: Color(0xFF6C4FA3),
+                  color: Color(0xFF424242),
                   size: 28,
                 ),
               ),
@@ -696,7 +955,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: 160,
                 height: 160,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDFCEFF).withOpacity(0.5),
+                  color: const Color(0xFFF5F5F5).withOpacity(0.5),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -706,7 +965,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: const Color(0xFF6C4FA3), width: 1),
+                  border: Border.all(color: const Color(0xFF424242), width: 1),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -714,17 +973,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       height: 8,
                       margin: const EdgeInsets.only(top: 8, left: 8, right: 8),
-                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
+                      color: const Color(0xFF424242).withOpacity(0.3),
                     ),
                     Container(
                       height: 4,
                       margin: const EdgeInsets.only(top: 4, left: 8, right: 20),
-                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
+                      color: const Color(0xFF424242).withOpacity(0.3),
                     ),
                     Container(
                       height: 4,
                       margin: const EdgeInsets.only(top: 4, left: 8, right: 15),
-                      color: const Color(0xFF6C4FA3).withOpacity(0.3),
+                      color: const Color(0xFF424242).withOpacity(0.3),
                     ),
                   ],
                 ),
@@ -734,7 +993,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 right: 100,
                 child: Icon(
                   Icons.add,
-                  color: const Color(0xFF6C4FA3),
+                  color: const Color(0xFF424242),
                   size: 18,
                 ),
               ),
@@ -743,7 +1002,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 left: 105,
                 child: Icon(
                   Icons.add,
-                  color: const Color(0xFF6C4FA3),
+                  color: const Color(0xFF424242),
                   size: 18,
                 ),
               ),

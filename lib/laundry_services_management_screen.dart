@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 
-const kPrimaryColor = Color(0xFF6C4FA3);
+const kPrimaryColor = Color(0xFF424242); // Dark gray
 
 class LaundryServicesManagementScreen extends StatefulWidget {
   final int laundryId;

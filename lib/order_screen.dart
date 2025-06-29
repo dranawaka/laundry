@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'cart_screen.dart';
 import 'api_service.dart';
 
-const kPrimaryColor = Color(0xFF6C4FA3);
+const kPrimaryColor = Color(0xFF424242); // Dark gray
 
 class OrderScreen extends StatefulWidget {
   final Map<String, dynamic> laundry;
@@ -270,14 +270,14 @@ class _OrderScreenState extends State<OrderScreen> {
                                           children: [
                                             if (service['pricePerItem'] != null)
                                               Text(
-                                                '₹${service['pricePerItem']}/item',
+                                                '\$${service['pricePerItem']}/item',
                                                 style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w500, fontSize: 12),
                                               ),
                                             if (service['pricePerItem'] != null && service['pricePerKg'] != null)
                                               Text(' | ', style: TextStyle(color: Colors.grey[400])),
                                             if (service['pricePerKg'] != null)
                                               Text(
-                                                '₹${service['pricePerKg']}/kg',
+                                                '\$${service['pricePerKg']}/kg',
                                                 style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w500, fontSize: 12),
                                               ),
                                           ],

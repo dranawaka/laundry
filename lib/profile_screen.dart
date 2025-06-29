@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
+import 'notification_test_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'fcm_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -31,8 +34,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    await ApiService.logout();
-    Navigator.of(context).pushReplacementNamed('/login');
+    try {
+      print('🚪 === LOGOUT PROCESS STARTED ===');
+      
+      // Get current user role for FCM cleanup
+      final prefs = await SharedPreferences.getInstance();
+      final userRole = prefs.getString('user_role');
+      print('Current user role: $userRole');
+      
+      // Unsubscribe from role-specific FCM topics
+      if (userRole != null) {
+        print('🎯 Unsubscribing from FCM topics for role: $userRole');
+        await FCMService().unsubscribeFromRoleTopics(userRole);
+      }
+      
+      // Clear FCM token
+      print('🧹 Clearing FCM token...');
+      await FCMService().clearFCMToken();
+      
+      // Perform logout API call
+      print('🔐 Calling logout API...');
+      await ApiService.logout();
+      
+      print('✅ Logout completed successfully');
+      print('=== LOGOUT PROCESS ENDED ===');
+      
+      // Navigate to login screen
+      Navigator.of(context).pushReplacementNamed('/login');
+      
+    } catch (e) {
+      print('❌ Error during logout: $e');
+      // Still navigate to login even if cleanup fails
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
   }
 
   @override
@@ -53,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: isLoading
           ? Center(
               child: CircularProgressIndicator(
-                color: Color(0xFF6C4FA3),
+                color: Color(0xFF808080),
               ),
             )
           : SingleChildScrollView(
@@ -82,13 +116,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: 100,
                           height: 100,
                           decoration: BoxDecoration(
-                            color: Color(0xFFDFCEFF),
+                            color: Color(0xFFF5F5F5),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.person,
                             size: 50,
-                            color: Color(0xFF6C4FA3),
+                            color: Color(0xFF424242),
                           ),
                         ),
                         SizedBox(height: 16),
@@ -104,7 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Color(0xFF6C4FA3).withOpacity(0.1),
+                            color: Color(0xFF424242).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -112,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF6C4FA3),
+                              color: Color(0xFF424242),
                             ),
                           ),
                         ),
@@ -148,6 +182,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.phone,
                           title: 'Phone',
                           value: userPhone ?? 'No phone available',
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  
+                  // Settings Section
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSettingsTile(
+                          icon: Icons.notifications,
+                          title: 'Notification Settings',
+                          subtitle: 'Test FCM functionality',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => NotificationTestScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        Divider(height: 1, indent: 56, endIndent: 16),
+                        _buildSettingsTile(
+                          icon: Icons.info,
+                          title: 'About',
+                          subtitle: 'App version and information',
+                          onTap: () {
+                            // TODO: Implement about screen
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('About screen coming soon!'),
+                                backgroundColor: Color(0xFF808080),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -202,12 +286,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Color(0xFF6C4FA3).withOpacity(0.1),
+              color: Color(0xFF808080).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: Color(0xFF6C4FA3),
+              color: Color(0xFF808080),
               size: 20,
             ),
           ),
@@ -237,6 +321,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Color(0xFF424242).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: Color(0xFF424242),
+                size: 20,
+              ),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Colors.grey[400],
+            ),
+          ],
+        ),
       ),
     );
   }

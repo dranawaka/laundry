@@ -2,21 +2,18 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'order_screen.dart';
+import 'favorites_service.dart';
+
+const kPrimaryColor = Color(0xFF424242); // Dark gray
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
-
-  // Static getter for global access
-  static List<Map<String, dynamic>> get favoriteLaundriesGlobal => _DashboardScreenState._favoriteLaundriesStatic;
 
   @override
   _DashboardScreenState createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  static List<Map<String, dynamic>> _favoriteLaundriesStatic = [];
-  List<Map<String, dynamic>> favoriteLaundries = _favoriteLaundriesStatic;
-
   TextEditingController _searchController = TextEditingController();
   TextEditingController _locationController = TextEditingController();
 
@@ -45,7 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'Close - Dropdown': false,
   };
 
-  RangeValues priceRange = RangeValues(0, 100000);
+  RangeValues priceRange = RangeValues(0, 100);
   bool isPickupDelivery = false;
 
   List<Map<String, dynamic>> allLaundries = [
@@ -54,8 +51,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'name': 'Laundry Mama',
       'distance': '10 KM',
       'rating': 4.5,
-      'price': 35000,
-      'priceText': 'Rp. 35,000',
+      'price': 35,
+      'priceText': '\$35.00',
       'services': ['Wash', 'Iron'],
       'isOpen': true,
       'hasPickup': true,
@@ -71,8 +68,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'name': 'Laundry Mama 2',
       'distance': '15 KM',
       'rating': 4.0,
-      'price': 50000,
-      'priceText': 'Rp. 50,000',
+      'price': 50,
+      'priceText': '\$50.00',
       'services': ['Wash + Iron'],
       'isOpen': true,
       'hasPickup': true,
@@ -88,8 +85,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'name': 'Laundry Mama 3',
       'distance': '20 KM',
       'rating': 3.5,
-      'price': 70000,
-      'priceText': 'Rp. 70,000',
+      'price': 70,
+      'priceText': '\$70.00',
       'services': ['Dry Clean'],
       'isOpen': false,
       'hasPickup': false,
@@ -111,6 +108,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _searchController.addListener(_filterLaundries);
     _loadUserData();
     _getCurrentLocation();
+    _initializeFavorites();
+  }
+
+  Future<void> _initializeFavorites() async {
+    try {
+      await FavoritesService.initialize();
+      // Update favorite status for all laundries
+      _updateFavoriteStatus();
+    } catch (e) {
+      print('Error initializing favorites: $e');
+    }
+  }
+
+  void _updateFavoriteStatus() {
+    setState(() {
+      for (var laundry in allLaundries) {
+        laundry['isFavorite'] = FavoritesService.isFavorite(laundry['id']);
+      }
+      // Update filtered list as well
+      _filterLaundries();
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -205,7 +223,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               'distance': '${_calculateDistance(service['latitude'], service['longitude']).toStringAsFixed(1)} KM',
               'rating': service['rating']?.toDouble() ?? 0.0,
               'price': service['price']?.toInt() ?? 0,
-              'priceText': 'Rp ${service['price']?.toString() ?? '0'}',
+              'priceText': '\$${service['price']?.toString() ?? '0'}',
               'services': service['services'] ?? [],
               'isOpen': service['isOpen'] ?? true,
               'hasPickup': service['hasPickup'] ?? false,
@@ -409,12 +427,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       RangeSlider(
                         values: priceRange,
                         min: 0,
-                        max: 100000,
+                        max: 100,
                         divisions: 10,
-                        activeColor: Color(0xFF6C4FA3),
+                        activeColor: Color(0xFF424242),
                         labels: RangeLabels(
-                          'Rp ${priceRange.start.round()}',
-                          'Rp ${priceRange.end.round()}',
+                          '\$${priceRange.start.toStringAsFixed(0)}',
+                          '\$${priceRange.end.toStringAsFixed(0)}',
                         ),
                         onChanged: (values) {
                           setModalState(() {
@@ -462,7 +480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           setModalState(() {
                             selectedServices.updateAll((key, value) => false);
                             selectedTimes.updateAll((key, value) => false);
-                            priceRange = RangeValues(0, 100000);
+                            priceRange = RangeValues(0, 100);
                             isPickupDelivery = false;
                           });
                         },
@@ -485,7 +503,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF6C4FA3),
+                          backgroundColor: Color(0xFF424242),
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -526,7 +544,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isSelected ? Color(0xFF6C4FA3) : Colors.grey[200],
+        color: isSelected ? Color(0xFF424242) : Colors.grey[200],
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
@@ -546,7 +564,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Color(0xFF6C4FA3) : Colors.grey[200],
+          color: isSelected ? Color(0xFF424242) : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -582,7 +600,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildLaundryCard(Map<String, dynamic> laundry) {
-    bool isFavorite = favoriteLaundries.any((fav) => fav['name'] == laundry['name']);
+    bool isFavorite = FavoritesService.isFavorite(laundry['id']);
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -617,22 +635,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                       // Favorite icon
                       GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isFavorite) {
-                              favoriteLaundries.removeWhere((fav) => fav['name'] == laundry['name']);
-                              _favoriteLaundriesStatic.removeWhere((fav) => fav['name'] == laundry['name']);
-                            } else {
-                              favoriteLaundries.add(laundry);
-                              _favoriteLaundriesStatic.add(laundry);
-                            }
-                          });
+                        onTap: () async {
+                          if (isFavorite) {
+                            await FavoritesService.removeFromFavorites(laundry['id']);
+                          } else {
+                            await FavoritesService.addToFavorites(laundry);
+                          }
+                          // Update the UI
+                          _updateFavoriteStatus();
+                          
+                          // Show feedback
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isFavorite ? 'Removed from favorites' : 'Added to favorites',
+                              ),
+                              backgroundColor: Color(0xFF424242),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
                         },
                         child: Container(
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: isFavorite ? Color(0xFF6C4FA3) : Colors.grey[300],
+                            color: isFavorite ? Color(0xFF424242) : Colors.grey[300],
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -671,7 +698,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ? 'Added to favorites'
                                   : 'Removed from favorites',
                             ),
-                            backgroundColor: Color(0xFF6C4FA3),
+                            backgroundColor: Color(0xFF424242),
                             duration: Duration(seconds: 1),
                           ),
                         );
@@ -681,7 +708,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         height: 24,
                         decoration: BoxDecoration(
                           color: laundry['isFavorite']
-                              ? Color(0xFF6C4FA3)
+                              ? Color(0xFF424242)
                               : Colors.grey[300],
                           shape: BoxShape.circle,
                         ),
@@ -706,7 +733,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: Icon(
                     Icons.local_laundry_service,
-                    color: Color(0xFF6C4FA3),
+                    color: Color(0xFF424242),
                     size: 24,
                   ),
                 ),
@@ -812,7 +839,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Color(0xFF6C4FA3),
+              color: Color(0xFF424242),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(12),
                 bottomRight: Radius.circular(12),
@@ -876,7 +903,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           IconButton(
             icon: Icon(
               Icons.refresh,
-              color: Color(0xFF6C4FA3),
+              color: Color(0xFF424242),
             ),
             onPressed: () {
               _getCurrentLocation();
@@ -887,7 +914,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               margin: EdgeInsets.only(right: 16),
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Color(0xFF6C4FA3).withOpacity(0.1),
+                color: Color(0xFF424242).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -895,14 +922,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Icon(
                     Icons.person,
-                    color: Color(0xFF6C4FA3),
+                    color: Color(0xFF424242),
                     size: 16,
                   ),
                   SizedBox(width: 6),
                   Text(
                     userName!,
                     style: TextStyle(
-                      color: Color(0xFF6C4FA3),
+                      color: Color(0xFF424242),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -939,12 +966,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ? 'Pickup/Drop-off enabled'
                                     : 'Pickup/Drop-off disabled',
                               ),
-                              backgroundColor: Color(0xFF6C4FA3),
+                              backgroundColor: Color(0xFF424242),
                               duration: Duration(seconds: 1),
                             ),
                           );
                         },
-                        activeColor: Color(0xFF6C4FA3),
+                        activeColor: Color(0xFF424242),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       SizedBox(width: 8),
@@ -1056,7 +1083,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Color(0xFF6C4FA3),
+                        color: Color(0xFF424242),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -1090,7 +1117,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircularProgressIndicator(
-                            color: Color(0xFF6C4FA3),
+                            color: Color(0xFF424242),
                           ),
                           SizedBox(height: 16),
                           Text(
@@ -1140,7 +1167,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ElevatedButton(
                                 onPressed: _getCurrentLocation,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF6C4FA3),
+                                  backgroundColor: Color(0xFF424242),
                                   foregroundColor: Colors.white,
                                 ),
                                 child: Text('Retry'),
@@ -1227,7 +1254,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: EdgeInsets.only(right: 8),
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Color(0xFF6C4FA3),
+        color: Color(0xFF424242),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(

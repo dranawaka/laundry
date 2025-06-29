@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'checkout_screen.dart';
 
-const kPrimaryColor = Color(0xFF6C4FA3);
+const kPrimaryColor = Color(0xFF424242); // Dark gray
 
 class CartScreen extends StatefulWidget {
   final Map<String, dynamic> laundry;
@@ -209,11 +209,11 @@ class _CartScreenState extends State<CartScreen> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '${price.toStringAsFixed(2)} × $count',
+                                      '\$${price.toStringAsFixed(2)} × $count',
                                       style: TextStyle(color: Colors.grey[700], fontSize: 13),
                                     ),
                                     Text(
-                                      '${serviceSubtotal.toStringAsFixed(2)}',
+                                      '\$${serviceSubtotal.toStringAsFixed(2)}',
                                       style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600, fontSize: 13),
                                     ),
                                   ],
@@ -242,7 +242,7 @@ class _CartScreenState extends State<CartScreen> {
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kPrimaryColor),
                     ),
                     Text(
-                      '${subtotal.toStringAsFixed(2)}',
+                      '\$${subtotal.toStringAsFixed(2)}',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kPrimaryColor),
                     ),
                   ],

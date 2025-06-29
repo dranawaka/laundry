@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'api_service.dart';
 
-const kPrimaryColor = Color(0xFF6C4FA3);
+const kPrimaryColor = Color(0xFF424242); // Dark gray
 
 class CheckoutScreen extends StatefulWidget {
   final Map<String, dynamic> laundry;

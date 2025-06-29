@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'login_screen.dart';
 import 'favorites_screen.dart';
 import 'dashboard_screen.dart';
@@ -8,9 +9,87 @@ import 'orders_screen.dart';
 import 'profile_screen.dart';
 import 'laundry_services_management_screen.dart';
 import 'api_service.dart';
+import 'fcm_service.dart';
+import 'favorites_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  print('=== APP STARTUP ===');
+  
+  // Initialize Firebase first
+  await Firebase.initializeApp();
+  print('✅ Firebase initialized');
+  
+  // Initialize FCM service
+  await FCMService().initialize();
+  print('✅ FCM service initialized');
+  
+  // Initialize Favorites service
+  await FavoritesService.initialize();
+  print('✅ Favorites service initialized');
+  
+  // Check and validate FCM token on startup
+  await _validateAndUpdateFCMTokenOnStartup();
+  
+  print('=== APP STARTUP COMPLETE ===');
+  
   runApp(const LaundryApp());
+}
+
+// Validate and update FCM token on app startup
+Future<void> _validateAndUpdateFCMTokenOnStartup() async {
+  try {
+    print('=== FCM TOKEN VALIDATION ON STARTUP ===');
+    
+    // Get current token status
+    final tokenStatus = FCMService().getTokenStatus();
+    print('Token Status: $tokenStatus');
+    
+    // Check if user is logged in
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+    final userId = prefs.getString('user_id');
+    
+    print('User logged in: $isLoggedIn');
+    print('User ID: $userId');
+    
+    if (isLoggedIn && userId != null) {
+      // User is logged in, ensure FCM token is up to date
+      if (tokenStatus['isValid']) {
+        print('✅ Valid FCM token found, updating with backend...');
+        final result = await FCMService().updateTokenForUser(userId);
+        if (result['success']) {
+          print('✅ FCM token updated successfully on startup');
+        } else {
+          print('⚠️ FCM token update failed on startup: ${result['message']}');
+        }
+      } else {
+        print('⚠️ Invalid FCM token found, refreshing...');
+        final newToken = await FCMService().forceRefreshToken();
+        if (newToken != null) {
+          print('✅ FCM token refreshed successfully');
+          final result = await FCMService().updateTokenForUser(userId);
+          if (result['success']) {
+            print('✅ FCM token updated successfully after refresh');
+          } else {
+            print('⚠️ FCM token update failed after refresh: ${result['message']}');
+          }
+        } else {
+          print('❌ Failed to refresh FCM token on startup');
+        }
+      }
+    } else {
+      print('ℹ️ User not logged in, skipping FCM token update');
+    }
+    
+    print('=== END FCM TOKEN VALIDATION ===');
+    
+  } catch (e) {
+    print('❌ Error during FCM token validation on startup: $e');
+    // Don't throw error as this is not critical for app startup
+  }
 }
 
 class LaundryApp extends StatelessWidget {
@@ -30,36 +109,36 @@ class LaundryApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: MaterialColor(
-          0xFF3A206D, // Dark purple as the main color
+          0xFF424242, // Dark gray as the main color
           <int, Color>{
-            50: Color(0xFFE6E6F2),
-            100: Color(0xFFC1BFE0),
-            200: Color(0xFF9A97CC),
-            300: Color(0xFF7260B8),
-            400: Color(0xFF5941A6),
-            500: Color(0xFF3A206D), // Main dark purple
-            600: Color(0xFF2E1857),
-            700: Color(0xFF231242),
-            800: Color(0xFF180B2D),
-            900: Color(0xFF0D0518),
+            50: Color(0xFFFAFAFA),   // Very light gray
+            100: Color(0xFFF5F5F5),  // Light gray
+            200: Color(0xFFEEEEEE),  // Lighter gray
+            300: Color(0xFFE0E0E0),  // Medium light gray
+            400: Color(0xFFBDBDBD),  // Medium gray
+            500: Color(0xFF9E9E9E),  // Medium dark gray
+            600: Color(0xFF757575),  // Dark gray
+            700: Color(0xFF616161),  // Darker gray
+            800: Color(0xFF424242),  // Main dark gray
+            900: Color(0xFF212121),  // Very dark gray
           },
         ),
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: Color(0xFFF8F8F8), // Very light gray background
         fontFamily: 'Roboto',
         textTheme: const TextTheme(
           titleLarge: TextStyle(
             fontWeight: FontWeight.w600,
-            color: Color(0xFF222244), // Dark blue for text
+            color: Color(0xFF212121), // Very dark gray for text
           ),
           bodyMedium: TextStyle(
-            color: Color(0xFF444466), // Slightly lighter dark blue
+            color: Color(0xFF424242), // Dark gray for body text
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.white,
-            backgroundColor: Color(0xFF3A206D), // Dark purple
-            elevation: 0,
+            backgroundColor: Color(0xFF424242), // Dark gray
+            elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -68,6 +147,35 @@ class LaundryApp extends StatelessWidget {
               fontWeight: FontWeight.w600,
               fontSize: 16,
             ),
+          ),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF424242), // Dark gray
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Color(0xFF424242), width: 2),
           ),
         ),
       ),
@@ -105,10 +213,12 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadUserRoleAndLaundryId() async {
     try {
       final userData = await ApiService.getCurrentUser();
+      final idString = userData['id'];
+      int? parsedLaundryId = int.tryParse(idString ?? '');
       setState(() {
         userRole = userData['role'];
         isLoading = false;
-        laundryId = int.tryParse(userData['id'] ?? '');
+        laundryId = parsedLaundryId;
       });
       print('User role loaded: $userRole'); // Debug log
       print('Laundry ID loaded: $laundryId'); // Debug log
@@ -202,7 +312,7 @@ class _MainScreenState extends State<MainScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                color: Color(0xFF9A7ED0),
+                color: Color(0xFF424242), // Dark gray
               ),
               SizedBox(height: 16),
               Text(
@@ -267,7 +377,7 @@ class _MainScreenState extends State<MainScreen> {
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
-          selectedItemColor: Color(0xFF9A7ED0),
+          selectedItemColor: Color(0xFF424242), // Dark gray
           unselectedItemColor: Colors.grey,
           elevation: 0,
           items: isLaundryOwner

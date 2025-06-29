@@ -51,7 +51,7 @@ class ApiService {
         
         // Save user data to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_id', data['id']?.toString() ?? '');
+        await prefs.setString('user_id', data['id'] != null ? data['id'].toString() : '');
         await prefs.setString('user_name', data['name'] ?? '');
         await prefs.setString('user_email', data['email'] ?? '');
         await prefs.setString('user_phone', data['phone'] ?? '');
@@ -62,7 +62,10 @@ class ApiService {
         return {
           'success': true,
           'message': message,
-          'data': data,
+          'data': {
+            ...data,
+            'id': data['id'] != null ? data['id'].toString() : '', // Always String in returned data
+          },
         };
       } else {
         // Handle Spring Boot error responses
@@ -130,6 +133,7 @@ class ApiService {
     required String password,
     required String phone,
     required String role,
+    String? fcmToken,
   }) async {
     try {
       final url = Config.getApiUrl(Config.registerEndpoint);
@@ -146,6 +150,12 @@ class ApiService {
         'password': password,
         'role': role.toUpperCase(), // Ensure role is uppercase as expected
       };
+      
+      // Add FCM token if available
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        requestBody['fcmToken'] = fcmToken;
+        print('Including FCM token in registration');
+      }
       
       print('Registration request body: ${jsonEncode(requestBody)}');
       print('Headers: $_headers');
@@ -271,9 +281,8 @@ class ApiService {
   // Get current user info
   static Future<Map<String, String?>> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
-    print('Loaded user role from prefs: \'${prefs.getString('user_role')}\''); // Debug print
     return {
-      'id': prefs.getString('user_id'),
+      'id': prefs.getString('user_id'), // Always return as String
       'name': prefs.getString('user_name'),
       'email': prefs.getString('user_email'),
       'phone': prefs.getString('user_phone'),
@@ -672,6 +681,107 @@ class ApiService {
       } else {
         final data = jsonDecode(response.body);
         return {'success': false, 'message': data['error'] ?? data['message'] ?? 'Failed to cancel order'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // FCM Token Management
+  static Future<Map<String, dynamic>> registerFCMToken(String fcmToken, String userId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/notification/user/$userId/fcm-token';
+      print('Registering FCM token at: $url');
+      
+      final response = await http.put(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode({
+          'fcmToken': fcmToken,
+        }),
+      ).timeout(Duration(seconds: 10));
+      
+      print('FCM token registration response: ${response.statusCode}');
+      print('FCM token registration response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'FCM token registered successfully',
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['error'] ?? data['message'] ?? 'Failed to register FCM token',
+          'statusCode': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('Error registering FCM token: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateFCMToken(String fcmToken, String userId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/notification/user/$userId/fcm-token';
+      print('Updating FCM token at: $url');
+      
+      final response = await http.put(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode({
+          'fcmToken': fcmToken,
+        }),
+      ).timeout(Duration(seconds: 10));
+      
+      print('FCM token update response: ${response.statusCode}');
+      print('FCM token update response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'FCM token updated successfully',
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['error'] ?? data['message'] ?? 'Failed to update FCM token',
+          'statusCode': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('Error updating FCM token: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteFCMToken(String userId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/users/fcm-token/$userId';
+      print('Deleting FCM token at: $url');
+      
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'FCM token deleted successfully',
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['error'] ?? data['message'] ?? 'Failed to delete FCM token',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Network error: ${e.toString()}'};

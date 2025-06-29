@@ -10,7 +10,7 @@ class LaundryDetailPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Color(0xFF6C4FA3),
+        backgroundColor: Color(0xFF424242),
         title: Text(
           service['name'],
           style: TextStyle(
@@ -26,7 +26,7 @@ class LaundryDetailPage extends StatelessWidget {
           children: [
             // Header section
             Container(
-              color: Color(0xFF6C4FA3),
+              color: Color(0xFF424242),
               padding: EdgeInsets.only(bottom: 20),
               child: Center(
                 child: Column(
@@ -41,7 +41,7 @@ class LaundryDetailPage extends StatelessWidget {
                       child: Icon(
                         Icons.local_laundry_service,
                         size: 40,
-                        color: Color(0xFF6C4FA3),
+                        color: Color(0xFF424242),
                       ),
                     ),
                     SizedBox(height: 12),
@@ -87,7 +87,7 @@ class LaundryDetailPage extends StatelessWidget {
                     'Pricing',
                     '${service['price']} ${service['priceUnit']}',
                     Icons.attach_money,
-                    Color(0xFF6C4FA3),
+                    Color(0xFF424242),
                   ),
 
                   SizedBox(height: 16),
@@ -120,12 +120,12 @@ class LaundryDetailPage extends StatelessWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Booking feature coming soon!'),
-                                backgroundColor: Color(0xFF6C4FA3),
+                                backgroundColor: Color(0xFF424242),
                               ),
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF6C4FA3),
+                            backgroundColor: Color(0xFF424242),
                             foregroundColor: Colors.white,
                             padding: EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
@@ -154,8 +154,8 @@ class LaundryDetailPage extends StatelessWidget {
                             );
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Color(0xFF6C4FA3),
-                            side: BorderSide(color: Color(0xFF6C4FA3)),
+                            foregroundColor: Color(0xFF424242),
+                            side: BorderSide(color: Color(0xFF424242)),
                             padding: EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
