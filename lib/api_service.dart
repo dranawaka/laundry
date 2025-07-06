@@ -20,25 +20,21 @@ class ApiService {
   }) async {
     try {
       final url = Config.getApiUrl(Config.loginEndpoint);
-      print('Attempting login to: $url'); // Debug log
-      
-      // Prepare request body for Spring Boot backend
       final requestBody = {
         'email': email,
         'password': password,
-        'role': role.toUpperCase(), // Ensure role is uppercase
+        'role': role.toUpperCase(),
       };
-      
-      print('Login request body: ${jsonEncode(requestBody)}'); // Debug log
-      
+      print('ApiService.login called');
+      print('URL: ' + url);
+      print('Request body: ' + requestBody.toString());
       final response = await http.post(
         Uri.parse(url),
         headers: _headers,
         body: jsonEncode(requestBody),
       ).timeout(Duration(milliseconds: Config.connectionTimeout));
-
-      print('Login response status: ${response.statusCode}'); // Debug log
-      print('Login response body: ${response.body}'); // Debug log
+      print('Response status: \\${response.statusCode}');
+      print('Response body: \\${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -786,5 +782,48 @@ class ApiService {
     } catch (e) {
       return {'success': false, 'message': 'Network error: ${e.toString()}'};
     }
+  }
+
+  // Submit a rating and review for a laundry (updated to match new endpoint)
+  static Future<Map<String, dynamic>> submitLaundryReview({
+    required int laundryId,
+    required int customerId,
+    required double rating,
+    required String reviewText,
+  }) async {
+    final url = Config.getApiUrl('/laundries/laundryId/rate?customerId=customerId')
+      .replaceAll('laundryId', laundryId.toString())
+      .replaceAll('customerId', customerId.toString());
+    final response = await http.post(
+      Uri.parse(url),
+      headers: _headers,
+      body: jsonEncode({
+        'rating': rating,
+        'reviewText': reviewText,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Fetch reviews for a laundry
+  static Future<List<dynamic>> getLaundryReviews(int laundryId) async {
+    final url = Config.getApiUrl('/laundries/$laundryId/reviews');
+    final response = await http.get(Uri.parse(url), headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      return [];
+    }
+  }
+
+  // Check if a customer has already reviewed a laundry
+  static Future<bool> hasReviewedLaundry(int laundryId, int customerId) async {
+    final url = Config.getApiUrl('/laundries/$laundryId/customer/$customerId/has-reviewed');
+    final response = await http.get(Uri.parse(url), headers: _headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['hasReviewed'] == true;
+    }
+    return false;
   }
 } 

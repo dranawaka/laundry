@@ -216,7 +216,7 @@ class _MainScreenState extends State<MainScreen> {
       final idString = userData['id'];
       int? parsedLaundryId = int.tryParse(idString ?? '');
       setState(() {
-        userRole = userData['role'];
+        userRole = (userData['role']?.isNotEmpty == true) ? userData['role'] : 'CUSTOMER';
         isLoading = false;
         laundryId = parsedLaundryId;
       });
@@ -240,22 +240,26 @@ class _MainScreenState extends State<MainScreen> {
 
   // Get the appropriate screen based on index and user role
   Widget _getScreen(int index) {
-    print('_getScreen called with index: $index, userRole: $userRole, laundryId: $laundryId'); // Debug log
+    print('_getScreen called with index: $index, userRole: $userRole, laundryId: $laundryId');
     if (index == 0) {
       if (userRole?.toUpperCase() == 'LAUNDRY') {
-        print('Returning LaundryServicesManagementScreen for LAUNDRY, laundryId: $laundryId'); // Debug log
+        print('Returning LaundryServicesManagementScreen for LAUNDRY, laundryId: $laundryId');
         return LaundryServicesManagementScreen(laundryId: laundryId ?? 1); // Use actual laundryId
       } else {
-        print('Returning FavoritesScreen for customer role: $userRole'); // Debug log
+        print('Returning FavoritesScreen for customer role: $userRole');
         return FavoritesScreen();
       }
     } else if (index == 1) {
+      print('Returning DashboardScreen');
       return DashboardScreen();
     } else if (index == 2) {
+      print('Returning OrdersScreen');
       return OrdersScreen();
     } else if (index == 3) {
+      print('Returning ProfileScreen');
       return ProfileScreen();
     }
+    print('Returning DashboardScreen (default fallback)');
     return DashboardScreen(); // Default fallback
   }
 
@@ -305,6 +309,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('MainScreen build, _currentIndex: $_currentIndex, userRole: $userRole');
     if (isLoading) {
       return Scaffold(
         body: Center(
@@ -334,6 +339,7 @@ class _MainScreenState extends State<MainScreen> {
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) {
+          print('PageView changed to page: $index');
           setState(() {
             _currentIndex = index;
           });
@@ -366,6 +372,7 @@ class _MainScreenState extends State<MainScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
+            print('BottomNavigationBar tapped: $index');
             setState(() {
               _currentIndex = index;
             });

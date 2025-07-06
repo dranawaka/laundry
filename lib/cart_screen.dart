@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
-import 'checkout_screen.dart';
-
-const kPrimaryColor = Color(0xFF424242); // Dark gray
 
 class CartScreen extends StatefulWidget {
   final Map<String, dynamic> laundry;
   final Map<String, int> selectedServices;
   final List<dynamic> availableServices;
   final String expressType;
-  const CartScreen({Key? key, required this.laundry, required this.selectedServices, required this.availableServices, required this.expressType}) : super(key: key);
+  const CartScreen({
+    Key? key,
+    required this.laundry,
+    required this.selectedServices,
+    required this.availableServices,
+    required this.expressType,
+  }) : super(key: key);
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -16,11 +19,13 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   Map<String, int> selectedServices = {};
+  late String expressType;
 
   @override
   void initState() {
     super.initState();
     selectedServices = Map.from(widget.selectedServices);
+    expressType = widget.expressType;
   }
 
   void _updateServiceCount(String serviceId, int count) {
@@ -42,11 +47,9 @@ class _CartScreenState extends State<CartScreen> {
         (s) => s['id'].toString() == serviceId,
         orElse: () => {},
       );
-      
       if (service.isNotEmpty) {
         final pricePerItem = service['pricePerItem'] ?? 0.0;
         final pricePerKg = service['pricePerKg'] ?? 0.0;
-        // Use price per item if available, otherwise price per kg
         final price = pricePerItem > 0 ? pricePerItem : pricePerKg;
         subtotal += price * count;
       }
@@ -57,229 +60,172 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     final laundry = widget.laundry;
-    final expressType = widget.expressType;
     final subtotal = _calculateSubtotal();
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: kPrimaryColor),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Cart', style: TextStyle(color: kPrimaryColor)),
+        title: const Text('Cart', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Center(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          laundry['name'] ?? 'LAUNDRY NAME',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kPrimaryColor),
-                        ),
-                        Text(
-                          'Pick up from (Customer Address)',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                        ),
-                      ],
+                  // Laundry Info
+                  Text(
+                    laundry['name'] ?? 'Laundry Name',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pick up from (Customer Address)',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 16),
+                  // Express Type Dropdown
+                  DropdownButtonFormField<String>(
+                    value: expressType,
+                    items: const [
+                      DropdownMenuItem(value: 'Express (24 Hr)', child: Text('Express (24 Hr)')),
+                      DropdownMenuItem(value: 'Normal (48 Hr)', child: Text('Normal (48 Hr)')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => expressType = v);
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Service Type',
+                      border: OutlineInputBorder(),
                     ),
                   ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: kPrimaryColor.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButton<String>(
-                      value: expressType,
-                      underline: SizedBox(),
-                      icon: Icon(Icons.keyboard_arrow_down, color: kPrimaryColor),
-                      dropdownColor: Colors.white,
-                      style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600),
-                      items: [
-                        DropdownMenuItem(value: 'Express (24 Hr)', child: Text('Express (24 Hr)')),
-                        DropdownMenuItem(value: 'Normal (48 Hr)', child: Text('Normal (48 Hr)')),
+                  const SizedBox(height: 24),
+                  // Selected Services
+                  if (selectedServices.isEmpty)
+                    Column(
+                      children: [
+                        Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text('No services selected', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
                       ],
-                      onChanged: (v) {},
+                    )
+                  else
+                    Column(
+                      children: [
+                        ...selectedServices.entries.map((entry) {
+                          final serviceId = entry.key;
+                          final count = entry.value;
+                          final service = widget.availableServices.firstWhere(
+                            (s) => s['id'].toString() == serviceId,
+                            orElse: () => {},
+                          );
+                          if (service.isEmpty) return const SizedBox.shrink();
+                          final pricePerItem = service['pricePerItem'] ?? 0.0;
+                          final pricePerKg = service['pricePerKg'] ?? 0.0;
+                          final price = pricePerItem > 0 ? pricePerItem : pricePerKg;
+                          final serviceSubtotal = price * count;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        service['serviceName'] ?? 'Service',
+                                        style: const TextStyle(
+                                            color: Colors.black, fontWeight: FontWeight.w600, fontSize: 16),
+                                      ),
+                                      if (service['description'] != null && service['description'].isNotEmpty)
+                                        Text(
+                                          service['description'],
+                                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                        ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Subtotal: \$${serviceSubtotal.toStringAsFixed(2)}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline, color: Colors.black),
+                                      onPressed: () => _updateServiceCount(serviceId, count - 1),
+                                    ),
+                                    Container(
+                                      width: 32,
+                                      alignment: Alignment.center,
+                                      child: Text(count.toString().padLeft(2, '0'),
+                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline, color: Colors.black),
+                                      onPressed: () => _updateServiceCount(serviceId, count + 1),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  const SizedBox(height: 32),
+                  // Subtotal and Checkout
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Subtotal:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text('\$${subtotal.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: selectedServices.isEmpty ? null : () {
+                        // Add your checkout logic here
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF001A36),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      child: const Text('Checkout'),
                     ),
                   ),
                 ],
               ),
             ),
-            // Selected Services
-            Expanded(
-              child: selectedServices.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[400]),
-                          SizedBox(height: 16),
-                          Text('No services selected', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: selectedServices.length,
-                      itemBuilder: (context, index) {
-                        final serviceId = selectedServices.keys.elementAt(index);
-                        final count = selectedServices[serviceId]!;
-                        final service = widget.availableServices.firstWhere(
-                          (s) => s['id'].toString() == serviceId,
-                          orElse: () => {},
-                        );
-
-                        if (service.isEmpty) return SizedBox.shrink();
-
-                        final pricePerItem = service['pricePerItem'] ?? 0.0;
-                        final pricePerKg = service['pricePerKg'] ?? 0.0;
-                        final price = pricePerItem > 0 ? pricePerItem : pricePerKg;
-                        final serviceSubtotal = price * count;
-
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: kPrimaryColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            service['serviceName'] ?? 'Service',
-                                            style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600),
-                                          ),
-                                          if (service['description'] != null && service['description'].isNotEmpty)
-                                            Text(
-                                              service['description'],
-                                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: kPrimaryColor.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(Icons.remove_circle_outline, color: kPrimaryColor),
-                                          onPressed: () => _updateServiceCount(serviceId, count - 1),
-                                        ),
-                                        Container(
-                                          width: 32,
-                                          alignment: Alignment.center,
-                                          child: Text(count.toString().padLeft(2, '0'), style: TextStyle(fontWeight: FontWeight.bold, color: kPrimaryColor)),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(Icons.add_circle_outline, color: kPrimaryColor),
-                                          onPressed: () => _updateServiceCount(serviceId, count + 1),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(left: 16.0, bottom: 12.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      '\$${price.toStringAsFixed(2)} × $count',
-                                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                                    ),
-                                    Text(
-                                      '\$${serviceSubtotal.toStringAsFixed(2)}',
-                                      style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600, fontSize: 13),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-            ),
-            // Total
-            if (selectedServices.isNotEmpty)
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: kPrimaryColor.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kPrimaryColor),
-                    ),
-                    Text(
-                      '\$${subtotal.toStringAsFixed(2)}',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kPrimaryColor),
-                    ),
-                  ],
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: selectedServices.isNotEmpty ? () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CheckoutScreen(
-                          laundry: laundry,
-                          selectedServices: selectedServices,
-                          availableServices: widget.availableServices,
-                          expressType: expressType,
-                          subtotal: subtotal,
-                        ),
-                      ),
-                    );
-                  } : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  child: Text('GO TO CHECKOUT', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
