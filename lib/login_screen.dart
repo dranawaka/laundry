@@ -687,18 +687,18 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildFormField(
-              label: 'Username',
+              label: 'Name',
               controller: _usernameController,
               prefixIcon: Icons.person_outline,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter a username';
+                  return 'Please enter your name';
                 }
                 if (value.length < 3) {
-                  return 'Username must be at least 3 characters';
+                  return 'Name must be at least 3 characters';
                 }
-                if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
-                  return 'Username can only contain letters, numbers, and underscores';
+                if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+                  return 'Name can only contain letters and spaces';
                 }
                 return null;
               },
@@ -804,7 +804,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (result['success']) {
                         // Update FCM token after successful registration
                         if (result['data'] != null && result['data']['id'] != null) {
-                          await _updateFCMTokenAfterRegistration(result['data']['id']);
+                          await _updateFCMTokenAfterRegistration(result['data']['id'].toString());
                         }
                         
                         Fluttertoast.showToast(
