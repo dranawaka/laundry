@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'cart_screen.dart';
 
 class LaundryDetailPage extends StatefulWidget {
   final Map<String, dynamic> service;
@@ -14,11 +15,17 @@ class LaundryDetailPage extends StatefulWidget {
 class _LaundryDetailPageState extends State<LaundryDetailPage> {
   int _selectedTab = 0;
   late Future<List<dynamic>> _reviewsFuture;
+  List<dynamic> _services = [];
+  bool _servicesLoading = true;
+  String? _servicesError;
+  Map<int, int> _serviceCounts = {};
+  List<Map<String, dynamic>> _cart = [];
 
   @override
   void initState() {
     super.initState();
     _reviewsFuture = _fetchReviews();
+    _fetchServices();
   }
 
   Future<List<dynamic>> _fetchReviews() async {
@@ -27,11 +34,90 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
     return await ApiService.getLaundryReviews(id);
   }
 
+  Future<void> _fetchServices() async {
+    setState(() {
+      _servicesLoading = true;
+      _servicesError = null;
+    });
+    final id = widget.service['id'];
+    print('LaundryDetailPage: fetching services for id: ' + id.toString());
+    if (id == null) {
+      setState(() {
+        _services = [];
+        _servicesLoading = false;
+        _servicesError = 'Laundry ID missing.';
+      });
+      print('LaundryDetailPage: Laundry ID missing');
+      return;
+    }
+    try {
+      final result = await ApiService.getServicesByLaundry(id);
+      print('LaundryDetailPage: API returned: ' + result.toString());
+      final filtered = result.where((s) => s['isAvailable'] == true).toList();
+      print('LaundryDetailPage: Filtered services: ' + filtered.toString());
+      setState(() {
+        _services = filtered;
+        _servicesLoading = false;
+        // Initialize counters for each service
+        _serviceCounts = {for (var s in filtered) s['id'] as int: 0};
+      });
+    } catch (e) {
+      setState(() {
+        _services = [];
+        _servicesLoading = false;
+        _servicesError = e.toString();
+      });
+      print('LaundryDetailPage: Error fetching services: ' + e.toString());
+    }
+  }
+
+  void _incrementService(int id) {
+    setState(() {
+      _serviceCounts[id] = (_serviceCounts[id] ?? 0) + 1;
+    });
+  }
+
+  void _decrementService(int id) {
+    setState(() {
+      if ((_serviceCounts[id] ?? 0) > 0) {
+        _serviceCounts[id] = _serviceCounts[id]! - 1;
+      }
+    });
+  }
+
   void _refreshReviews() {
     setState(() {
       _reviewsFuture = _fetchReviews();
     });
   }
+
+  void _addToCart() {
+    final List<Map<String, dynamic>> selected = [];
+    for (var s in _services) {
+      final int id = s['id'] as int;
+      final int count = _serviceCounts[id] ?? 0;
+      if (count > 0) {
+        selected.add({
+          ...s,
+          'count': count,
+        });
+      }
+    }
+    setState(() {
+      _cart = selected;
+    });
+    if (selected.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to cart!'), backgroundColor: Colors.black),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No services selected.'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  bool get _cartNotEmpty => _cart.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -56,8 +142,32 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.shopping_bag_outlined, color: Colors.black),
-            onPressed: () {},
+            icon: Icon(
+              Icons.shopping_bag_outlined,
+              color: _cartNotEmpty ? Colors.black : Colors.black26,
+            ),
+            onPressed: _cartNotEmpty
+                ? () {
+                    // Prepare selectedServices as Map<String, int>
+                    final selectedServices = <String, int>{};
+                    for (var entry in _cart) {
+                      final id = entry['id'].toString();
+                      final count = entry['count'] ?? 0;
+                      if (count > 0) selectedServices[id] = count;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CartScreen(
+                          laundry: widget.service,
+                          selectedServices: selectedServices,
+                          availableServices: _services,
+                          expressType: 'Express (24 Hr)',
+                        ),
+                      ),
+                    );
+                  }
+                : null,
           ),
           IconButton(
             icon: const Icon(Icons.favorite_border, color: Colors.black),
@@ -131,10 +241,9 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      _tabItem('Price list', 0),
+                      _tabItem('Services', 0),
                       _tabItem('About', 1),
-                      _tabItem('Services', 2),
-                      _tabItem('Offer', 3),
+                      _tabItem('Offer', 2),
                     ],
                   ),
                 ),
@@ -143,35 +252,30 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
                 Builder(
                   builder: (context) {
                     if (_selectedTab == 0) {
-                      // Price list tab
-                      return Column(
-                        children: [
-                          // Category chips
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Row(
-                              children: [
-                                _categoryChip('Man', true, 'https://randomuser.me/api/portraits/men/1.jpg'),
-                                const SizedBox(width: 8),
-                                _categoryChip('Woman', false, 'https://randomuser.me/api/portraits/women/1.jpg'),
-                                const SizedBox(width: 8),
-                                _categoryChip('Kids', false, 'https://randomuser.me/api/portraits/men/2.jpg'),
-                              ],
-                            ),
+                      // Services tab
+                      if (_servicesLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (_servicesError != null) {
+                        return Center(child: Text(_servicesError!, style: TextStyle(color: Colors.red)));
+                      } else if (_services.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.local_laundry_service, size: 64, color: Colors.grey[400]),
+                              SizedBox(height: 16),
+                              Text('No services available', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          // Price list (expandable cards, static for now)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              children: [
-                                _priceCard('T-shirts', 'https://img.icons8.com/color/48/000000/t-shirt.png'),
-                                const SizedBox(height: 12),
-                                _priceCard('Suit', 'https://img.icons8.com/color/48/000000/business-suit.png'),
-                              ],
-                            ),
-                          ),
-                        ],
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 0),
+                        child: Column(
+                          children: [
+                            for (var s in _services) _serviceCardV2(s),
+                          ],
+                        ),
                       );
                     } else if (_selectedTab == 1) {
                       // About tab
@@ -238,22 +342,6 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
                           ],
                         ),
                       );
-                    } else if (_selectedTab == 2) {
-                      // Services tab
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: [
-                            _serviceCard('Wash & fold', '48 hours', 'https://img.icons8.com/color/48/000000/laundry.png'),
-                            const SizedBox(height: 12),
-                            _serviceCard('Ironing & fold', '40 hours', 'https://img.icons8.com/color/48/000000/iron.png'),
-                            const SizedBox(height: 12),
-                            _serviceCard('Hello World', 'Hello World', 'https://img.icons8.com/color/48/000000/clothes.png'),
-                            const SizedBox(height: 12),
-                            _serviceCard('Hello World', 'Hello World', 'https://img.icons8.com/color/48/000000/washing-machine.png'),
-                          ],
-                        ),
-                      );
                     } else {
                       // Offer tab
                       return Padding(
@@ -299,7 +387,7 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: _addToCart,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
@@ -428,36 +516,57 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
     );
   }
 
-  Widget _serviceCard(String title, String subtitle, String iconUrl) {
+  Widget _serviceCardV2(Map<String, dynamic> s) {
+    final int id = s['id'] as int;
+    final String name = s['serviceName']?.toString() ?? 'Service';
+    final String desc = s['description']?.toString() ?? '';
+    final String pricePerItem = s['pricePerItem'] != null ? '${s['pricePerItem']}/item' : '';
+    final String pricePerKg = s['pricePerKg'] != null ? '${s['pricePerKg']}/kg' : '';
+    final int count = _serviceCounts[id] ?? 0;
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Image.network(iconUrl, width: 36, height: 36),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(fontSize: 14, color: Colors.black54)),
-              ],
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: () => _decrementService(id),
+                  ),
+                  Text(count.toString().padLeft(2, '0'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: () => _incrementService(id),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const Icon(Icons.arrow_forward_ios, color: Colors.black54, size: 18),
+          if (desc.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 2),
+              child: Text(desc, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            ),
+          Row(
+            children: [
+              if (pricePerItem.isNotEmpty)
+                Text(pricePerItem, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+              if (pricePerItem.isNotEmpty && pricePerKg.isNotEmpty)
+                const Text('  |  ', style: TextStyle(fontSize: 14, color: Colors.black87)),
+              if (pricePerKg.isNotEmpty)
+                Text(pricePerKg, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+            ],
+          ),
         ],
       ),
     );

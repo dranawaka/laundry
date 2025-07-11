@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'api_service.dart';
+import 'checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final Map<String, dynamic> laundry;
@@ -211,7 +213,18 @@ class _CartScreenState extends State<CartScreen> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: selectedServices.isEmpty ? null : () {
-                        // Add your checkout logic here
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CheckoutScreen(
+                              laundry: widget.laundry,
+                              selectedServices: selectedServices,
+                              availableServices: widget.availableServices,
+                              expressType: expressType,
+                              subtotal: subtotal,
+                            ),
+                          ),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF001A36),
