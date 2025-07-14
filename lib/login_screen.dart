@@ -20,8 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController(text: '1qaz!Z');
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  String _selectedRole = 'User';
-  final List<String> _roles = ['User', 'Laundry Owner'];
+  String _selectedRole = 'CUSTOMER';
+  final List<String> _roles = ['CUSTOMER', 'LAUNDRY'];
 
   Future<void> _updateFCMToken(String userId) async {
     try {
@@ -45,8 +45,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       print('Calling ApiService.login...');
       
-      // Map UI role to API role
-      String apiRole = _selectedRole == 'Laundry Owner' ? 'LAUNDRY' : 'USER';
+      // Use the selected role directly since we're now using the correct API role names
+      String apiRole = _selectedRole;
       
       final result = await ApiService.login(
         email: _emailController.text.trim(),
@@ -176,18 +176,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 20),
                         DropdownButtonFormField<String>(
                           value: _selectedRole,
-                          items: _roles
-                              .map((role) => DropdownMenuItem(
-                                    value: role,
-                                    child: Text(role),
-                                  ))
-                              .toList(),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'CUSTOMER',
+                              child: Text('Customer'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'LAUNDRY',
+                              child: Text('Laundry Owner'),
+                            ),
+                          ],
                           onChanged: (value) {
                             if (value != null) {
                               setState(() => _selectedRole = value);
                             }
                           },
                           decoration: const InputDecoration(
+                            labelText: 'Role',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -283,10 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text("Don't have an account? ", style: TextStyle(color: Colors.black)),
                       GestureDetector(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => RegistrationScreen()),
-                          );
+                          Navigator.pushNamed(context, '/register');
                         },
                         child: const Text(
                           'Sign up',

@@ -15,11 +15,14 @@ class _LaundryServicesManagementScreenState extends State<LaundryServicesManagem
   List<dynamic> services = [];
   bool isLoading = true;
   String? error;
+  bool? laundryIsActive;
+  bool isLoadingStatus = false;
 
   @override
   void initState() {
     super.initState();
     _fetchServices();
+    _fetchLaundryStatus();
   }
 
   Future<void> _fetchServices() async {
@@ -32,6 +35,76 @@ class _LaundryServicesManagementScreenState extends State<LaundryServicesManagem
     } catch (e) {
       print('Error fetching services: $e');
       setState(() { error = e.toString(); isLoading = false; });
+    }
+  }
+
+  Future<void> _fetchLaundryStatus() async {
+    setState(() { isLoadingStatus = true; });
+    try {
+      final result = await ApiService.getLaundryStatus(widget.laundryId);
+      if (result['success']) {
+        // The endpoint returns a list of active laundries
+        final activeLaundries = result['data'] as List<dynamic>;
+        // Check if current laundry is in the active list
+        final isActive = activeLaundries.any((laundry) => 
+          laundry['id'] == widget.laundryId || 
+          laundry['laundryId'] == widget.laundryId
+        );
+        
+        setState(() { 
+          laundryIsActive = isActive;
+          isLoadingStatus = false;
+        });
+      } else {
+        setState(() { 
+          laundryIsActive = true; // Default to active if fetch fails
+          isLoadingStatus = false;
+        });
+        print('Failed to fetch laundry status: ${result['message']}');
+      }
+    } catch (e) {
+      setState(() { 
+        laundryIsActive = true; // Default to active if error
+        isLoadingStatus = false;
+      });
+      print('Error fetching laundry status: $e');
+    }
+  }
+
+  Future<void> _toggleLaundryStatus() async {
+    if (laundryIsActive == null) return;
+    
+    setState(() { isLoadingStatus = true; });
+    try {
+      final result = await ApiService.updateLaundryStatus(widget.laundryId, !laundryIsActive!);
+      if (result['success']) {
+        setState(() { 
+          laundryIsActive = !laundryIsActive!;
+          isLoadingStatus = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Laundry status updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        setState(() { isLoadingStatus = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to update laundry status'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() { isLoadingStatus = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating laundry status: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -170,65 +243,118 @@ class _LaundryServicesManagementScreenState extends State<LaundryServicesManagem
           ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator(color: kPrimaryColor))
-          : error != null
-              ? Center(child: Text(error!, style: TextStyle(color: Colors.red)))
-              : services.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.local_laundry_service, size: 64, color: Colors.grey[400]),
-                          SizedBox(height: 16),
-                          Text('No services found. Tap + to add.', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-                        ],
+      body: Column(
+        children: [
+          // Laundry Status Banner
+          if (laundryIsActive != null)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: laundryIsActive! ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              child: Row(
+                children: [
+                  Icon(
+                    laundryIsActive! ? Icons.check_circle : Icons.cancel,
+                    color: laundryIsActive! ? Colors.green : Colors.red,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      laundryIsActive! 
+                          ? 'Your laundry is currently ACTIVE and visible to customers'
+                          : 'Your laundry is currently INACTIVE and hidden from customers',
+                      style: TextStyle(
+                        color: laundryIsActive! ? Colors.green.shade700 : Colors.red.shade700,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  if (isLoadingStatus)
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: laundryIsActive! ? Colors.green : Colors.red,
                       ),
                     )
-                  : ListView.builder(
-                      itemCount: services.length,
-                      itemBuilder: (context, index) {
-                        final s = services[index];
-                        return Card(
-                          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: ListTile(
-                            title: Text(s['serviceName'] ?? '', style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold)),
-                            subtitle: Text(s['description'] ?? ''),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
+                  else
+                    Switch(
+                      value: laundryIsActive!,
+                      onChanged: (value) => _toggleLaundryStatus(),
+                      activeColor: Colors.green,
+                      inactiveThumbColor: Colors.red,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                ],
+              ),
+            ),
+          // Services List
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator(color: kPrimaryColor))
+                : error != null
+                    ? Center(child: Text(error!, style: TextStyle(color: Colors.red)))
+                    : services.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                IconButton(
-                                  icon: Icon(s['isAvailable'] == true ? Icons.check_circle : Icons.cancel, color: s['isAvailable'] == true ? Colors.green : Colors.red),
-                                  tooltip: 'Toggle Availability',
-                                  onPressed: () async {
-                                    await ApiService.toggleServiceAvailability(s['id'], widget.laundryId);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Availability updated!'), backgroundColor: Colors.blue),
-                                    );
-                                    _fetchServices();
-                                  },
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.edit, color: kPrimaryColor),
-                                  onPressed: () => _showServiceDialog(service: s),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () async {
-                                    await ApiService.deleteLaundryService(s['id'], widget.laundryId);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Service deleted!'), backgroundColor: Colors.red),
-                                    );
-                                    _fetchServices();
-                                  },
-                                ),
+                                Icon(Icons.local_laundry_service, size: 64, color: Colors.grey[400]),
+                                SizedBox(height: 16),
+                                Text('No services found. Tap + to add.', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
                               ],
                             ),
+                          )
+                        : ListView.builder(
+                            itemCount: services.length,
+                            itemBuilder: (context, index) {
+                              final s = services[index];
+                              return Card(
+                                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                child: ListTile(
+                                  title: Text(s['serviceName'] ?? '', style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold)),
+                                  subtitle: Text(s['description'] ?? ''),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(s['isAvailable'] == true ? Icons.check_circle : Icons.cancel, color: s['isAvailable'] == true ? Colors.green : Colors.red),
+                                        tooltip: 'Toggle Availability',
+                                        onPressed: () async {
+                                          await ApiService.toggleServiceAvailability(s['id'], widget.laundryId);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Availability updated!'), backgroundColor: Colors.blue),
+                                          );
+                                          _fetchServices();
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.edit, color: kPrimaryColor),
+                                        onPressed: () => _showServiceDialog(service: s),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () async {
+                                          await ApiService.deleteLaundryService(s['id'], widget.laundryId);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Service deleted!'), backgroundColor: Colors.red),
+                                          );
+                                          _fetchServices();
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
+          ),
+        ],
+      ),
     );
   }
 } 

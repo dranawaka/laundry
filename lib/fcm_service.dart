@@ -9,12 +9,78 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'package:http/http.dart' as http;
 import 'config.dart';
+import 'chat_detail_screen.dart';
+import 'chat_models.dart';
 
 // Top-level function to handle background messages
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('Handling a background message: ${message.messageId}');
+}
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+Future<void> setupFlutterNotifications(BuildContext context) async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  final InitializationSettings initializationSettings =
+      InitializationSettings(android: initializationSettingsAndroid);
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) async {
+      final payload = response.payload;
+      if (payload != null && payload.isNotEmpty) {
+        final conversationId = int.tryParse(payload);
+        if (conversationId != null) {
+          // Fetch conversation details and navigate
+          final user = await ApiService.getCurrentUser();
+          final userId = int.tryParse(user['id'] ?? '') ?? 0;
+          final userRole = user['role'] ?? '';
+          // TODO: Optionally fetch the full conversation object
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => ChatDetailScreen(
+              conversation: ChatConversation(
+                id: conversationId,
+                customerId: 0,
+                customerName: '',
+                laundryId: 0,
+                laundryName: '',
+                lastMessage: null,
+                unreadCount: 0,
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+              currentUserId: userId,
+              currentUserRole: userRole,
+            ),
+          ));
+        }
+      }
+    },
+  );
+}
+
+void showChatNotification(RemoteMessage message) {
+  final notification = message.notification;
+  final data = message.data;
+  flutterLocalNotificationsPlugin.show(
+    notification.hashCode,
+    notification?.title ?? 'New Message',
+    notification?.body ?? '',
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        'chat_channel',
+        'Chat Messages',
+        channelDescription: 'Channel for chat message notifications',
+        importance: Importance.max,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      ),
+    ),
+    payload: data['conversationId']?.toString() ?? '', // Pass conversationId for navigation
+  );
 }
 
 class FCMService {

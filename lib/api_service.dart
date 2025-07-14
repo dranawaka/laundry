@@ -130,6 +130,11 @@ class ApiService {
     required String phone,
     required String role,
     String? fcmToken,
+    String? address,
+    String? city,
+    String? state,
+    String? zipCode,
+    String? country,
   }) async {
     try {
       final url = Config.getApiUrl(Config.registerEndpoint);
@@ -146,6 +151,23 @@ class ApiService {
         'password': password,
         'role': role.toUpperCase(), // Ensure role is uppercase as expected
       };
+      
+      // Add address fields if provided
+      if (address != null && address.isNotEmpty) {
+        requestBody['address'] = address;
+      }
+      if (city != null && city.isNotEmpty) {
+        requestBody['city'] = city;
+      }
+      if (state != null && state.isNotEmpty) {
+        requestBody['state'] = state;
+      }
+      if (zipCode != null && zipCode.isNotEmpty) {
+        requestBody['zipCode'] = zipCode;
+      }
+      if (country != null && country.isNotEmpty) {
+        requestBody['country'] = country;
+      }
       
       // Add FCM token if available
       if (fcmToken != null && fcmToken.isNotEmpty) {
@@ -277,30 +299,36 @@ class ApiService {
   // Get current user info
   static Future<Map<String, String?>> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
-    return {
+    final userData = {
       'id': prefs.getString('user_id'), // Always return as String
       'name': prefs.getString('user_name'),
       'email': prefs.getString('user_email'),
       'phone': prefs.getString('user_phone'),
       'role': prefs.getString('user_role'),
     };
+    print('🔵 getCurrentUser data: $userData');
+    return userData;
   }
 
   // Test connection to backend
   static Future<bool> testConnection() async {
     try {
       final url = Config.getApiBaseUrl();
-      print('Testing connection to: $url');
+      print('🔵 Testing connection to: $url');
       
       final response = await http.get(
         Uri.parse(url),
         headers: _headers,
       ).timeout(Duration(seconds: 5));
       
-      print('Connection test response: ${response.statusCode}');
-      return response.statusCode < 500; // Any response means server is reachable
+      print('🔵 Connection test response: ${response.statusCode}');
+      print('🔵 Connection test body: ${response.body}');
+      
+      final isConnected = response.statusCode < 500; // Any response means server is reachable
+      print(isConnected ? '✅ Connection successful' : '❌ Connection failed');
+      return isConnected;
     } catch (e) {
-      print('Connection test failed: $e');
+      print('❌ Connection test exception: $e');
       return false;
     }
   }
@@ -642,6 +670,77 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  // Update laundry status (active/inactive)
+  static Future<Map<String, dynamic>> updateLaundryStatus(int laundryId, bool isActive) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/laundry/services/$laundryId/active?active=$isActive';
+      print('Updating laundry status at: $url');
+      
+      final response = await http.put(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Update laundry status response: ${response.statusCode}');
+      print('Update laundry status response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true, 
+          'message': data['message'] ?? 'Laundry status updated successfully'
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false, 
+          'message': data['error'] ?? data['message'] ?? 'Failed to update laundry status'
+        };
+      }
+    } catch (e) {
+      print('Error updating laundry status: $e');
+      return {
+        'success': false, 
+        'message': 'Network error: ${e.toString()}'
+      };
+    }
+  }
+
+  // Get laundry status
+  static Future<Map<String, dynamic>> getLaundryStatus(int laundryId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/laundry/services/active';
+      print('Getting laundry status from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Get laundry status response: ${response.statusCode}');
+      print('Get laundry status response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to fetch laundry status',
+        };
+      }
+    } catch (e) {
+      print('Error getting laundry status: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> updateOrderStatus(int orderId, String status) async {
     try {
       final url = '${Config.getApiBaseUrl()}/orders/$orderId/update-status';
@@ -791,9 +890,7 @@ class ApiService {
     required double rating,
     required String reviewText,
   }) async {
-    final url = Config.getApiUrl('/laundries/laundryId/rate?customerId=customerId')
-      .replaceAll('laundryId', laundryId.toString())
-      .replaceAll('customerId', customerId.toString());
+    final url = Config.getApiUrl('/laundries/$laundryId/rate?customerId=$customerId');
     final response = await http.post(
       Uri.parse(url),
       headers: _headers,
@@ -825,5 +922,467 @@ class ApiService {
       return data['hasReviewed'] == true;
     }
     return false;
+  }
+
+  // ==================== ANALYTICS ENDPOINTS ====================
+
+  // Get analytics summary for a laundry owner
+  static Future<Map<String, dynamic>> getAnalyticsSummary(int laundryId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/analytics/summary/$laundryId';
+      print('Getting analytics summary from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Analytics summary response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch analytics summary',
+        };
+      }
+    } catch (e) {
+      print('Error getting analytics summary: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get revenue analytics for a laundry owner
+  static Future<Map<String, dynamic>> getRevenueAnalytics(int laundryId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/analytics/revenue/$laundryId';
+      print('Getting revenue analytics from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Revenue analytics response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch revenue analytics',
+        };
+      }
+    } catch (e) {
+      print('Error getting revenue analytics: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get order analytics for a laundry owner
+  static Future<Map<String, dynamic>> getOrderAnalytics(int laundryId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/analytics/orders/$laundryId';
+      print('Getting order analytics from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Order analytics response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch order analytics',
+        };
+      }
+    } catch (e) {
+      print('Error getting order analytics: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get service analytics for a laundry owner
+  static Future<Map<String, dynamic>> getServiceAnalytics(int laundryId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/analytics/services/$laundryId';
+      print('Getting service analytics from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Service analytics response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch service analytics',
+        };
+      }
+    } catch (e) {
+      print('Error getting service analytics: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get customer analytics for a laundry owner
+  static Future<Map<String, dynamic>> getCustomerAnalytics(int laundryId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/analytics/customers/$laundryId';
+      print('Getting customer analytics from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Customer analytics response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch customer analytics',
+        };
+      }
+    } catch (e) {
+      print('Error getting customer analytics: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // ==================== CHAT/MESSAGING ENDPOINTS ====================
+
+  // Get all conversations for a user
+  static Future<Map<String, dynamic>> getConversations(int userId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/chat/users/$userId/conversations';
+      print('Getting conversations from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Conversations response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch conversations',
+        };
+      }
+    } catch (e) {
+      print('Error getting conversations: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get messages for a specific conversation
+  static Future<Map<String, dynamic>> getMessages(int conversationId, {int page = 0, int limit = 50}) async {
+    try {
+      // Ensure 0-based page numbering for backend
+      final backendPage = page;
+      final url = '${Config.getApiBaseUrl()}/chat/conversations/$conversationId/messages?page=$backendPage&limit=$limit';
+      print('🔵 Getting messages from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('🔵 Messages response: ${response.statusCode}');
+      print('🔵 Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print('✅ Messages retrieved successfully');
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        final errorData = jsonDecode(response.body);
+        print('❌ Error response: $errorData');
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch messages',
+        };
+      }
+    } catch (e) {
+      print('❌ Exception in getMessages: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Send a new message
+  static Future<Map<String, dynamic>> sendMessage({
+    required int conversationId,
+    required int senderId,
+    required String message,
+    String messageType = 'text',
+  }) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/chat/conversations/$conversationId/messages';
+      print('🔵 Sending message to: $url');
+      
+      final requestBody = {
+        'senderId': senderId,
+        'message': message,
+        'messageType': messageType,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      
+      print('🔵 Request body: $requestBody');
+      print('🔵 Request headers: $_headers');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode(requestBody),
+      ).timeout(Duration(seconds: 10));
+      
+      print('🔵 Send message response: ${response.statusCode}');
+      print('🔵 Response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        print('✅ Message sent successfully');
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        final errorData = jsonDecode(response.body);
+        print('❌ Error response: $errorData');
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to send message',
+        };
+      }
+    } catch (e) {
+      print('❌ Exception in sendMessage: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Create or get conversation between customer and laundry
+  static Future<Map<String, dynamic>> createOrGetConversation({
+    required int customerId,
+    required int laundryId,
+  }) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/chat/conversations';
+      print('🔵 Creating/getting conversation at: $url');
+      
+      final requestBody = {
+        'customerId': customerId,
+        'laundryId': laundryId,
+      };
+      
+      print('🔵 Request body: $requestBody');
+      print('🔵 Request headers: $_headers');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode(requestBody),
+      ).timeout(Duration(seconds: 10));
+      
+      print('🔵 Create conversation response: ${response.statusCode}');
+      print('🔵 Response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        print('✅ Conversation created/retrieved successfully');
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        final errorData = jsonDecode(response.body);
+        print('❌ Error response: $errorData');
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to create conversation',
+        };
+      }
+    } catch (e) {
+      print('❌ Exception in createOrGetConversation: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Mark messages as read
+  static Future<Map<String, dynamic>> markMessagesAsRead(int conversationId, int userId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/chat/conversations/$conversationId/read';
+      print('Marking messages as read at: $url');
+      
+      final requestBody = {
+        'userId': userId,
+        'readAt': DateTime.now().toIso8601String(),
+      };
+      
+      final response = await http.put(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode(requestBody),
+      ).timeout(Duration(seconds: 10));
+      
+      print('Mark as read response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to mark messages as read',
+        };
+      }
+    } catch (e) {
+      print('Error marking messages as read: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get unread message count for a user
+  static Future<Map<String, dynamic>> getUnreadMessageCount(int userId) async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/chat/users/$userId/unread-count';
+      print('Getting unread count from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Unread count response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to fetch unread count',
+        };
+      }
+    } catch (e) {
+      print('Error getting unread count: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Fetch full user profile (with address details) from backend
+  static Future<Map<String, dynamic>?> getUserProfileFromBackend(String userId) async {
+    try {
+      final url = Uri.parse('${Config.getApiBaseUrl()}/auth/user/$userId');
+      print('Fetching user profile from backend: $url');
+      final response = await http.get(url, headers: _headers).timeout(Duration(seconds: 10));
+      print('User profile response status: ${response.statusCode}');
+      print('User profile response body: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // If the backend wraps the user in a 'data' field, unwrap it
+        if (data is Map<String, dynamic> && data.containsKey('data')) {
+          return data['data'] as Map<String, dynamic>;
+        }
+        return data as Map<String, dynamic>;
+      } else {
+        print('Failed to fetch user profile: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching user profile from backend: $e');
+      return null;
+    }
   }
 } 

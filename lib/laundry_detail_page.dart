@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'cart_screen.dart';
+import 'chat_detail_screen.dart';
+import 'chat_models.dart';
 
 class LaundryDetailPage extends StatefulWidget {
   final Map<String, dynamic> service;
@@ -122,11 +124,25 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
   @override
   Widget build(BuildContext context) {
     final service = widget.service;
+    if (service['isActive'] != null && service['isActive'] != true) {
+      // If not active, pop and show error
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This laundry is not available.'), backgroundColor: Colors.red),
+        );
+      });
+      return const SizedBox.shrink();
+    }
     final String name = service['name']?.toString() ?? 'Laundry';
     final String address = service['address']?.toString() ?? '4140 parker rd. allentown, new mexico 31134 (1.2KM)';
     final String hours = service['hours']?.toString() ?? '7AM - 11PM';
-    final double rating = (service['rating'] is num) ? service['rating'].toDouble() : 4.2;
-    final int reviews = service['reviews'] ?? 4200;
+    final double rating = (service['rating'] is num)
+        ? service['rating'].toDouble()
+        : (double.tryParse(service['rating']?.toString() ?? '') ?? 0.0);
+    final int reviews = (service['reviewCount'] ?? service['reviews']) is int
+        ? (service['reviewCount'] ?? service['reviews'])
+        : int.tryParse((service['reviewCount'] ?? service['reviews'])?.toString() ?? '') ?? 0;
     final String image = service['image']?.toString() ?? '';
 
     return Scaffold(
@@ -232,6 +248,7 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
                       _actionIcon(Icons.call, 'Call'),
                       _actionIcon(Icons.directions, 'Direction'),
                       _actionIcon(Icons.share, 'Share'),
+                      _actionIconButton(Icons.message, 'Message', _onMessagePressed),
                     ],
                   ),
                 ),
@@ -764,5 +781,70 @@ class _LaundryDetailPageState extends State<LaundryDetailPage> {
         ],
       ),
     );
+  }
+
+  // Add this helper for tappable action icons
+  Widget _actionIconButton(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.black, size: 24),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+        ],
+      ),
+    );
+  }
+
+  // Add this method to handle messaging
+  void _onMessagePressed() async {
+    final laundry = widget.service;
+    final laundryId = laundry['id'];
+    final laundryName = laundry['name']?.toString() ?? '';
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final user = await ApiService.getCurrentUser();
+      final userId = int.tryParse(user['id'] ?? '') ?? 0;
+      final userRole = user['role'] ?? '';
+      if (userId == 0 || userRole.isEmpty) throw Exception('User not logged in');
+      // For customer, start chat with laundry; for laundry, start chat with customer (not supported here)
+      final result = await ApiService.createOrGetConversation(
+        customerId: userRole.toUpperCase() == 'CUSTOMER' ? userId : 0,
+        laundryId: userRole.toUpperCase() == 'LAUNDRY' ? userId : laundryId,
+      );
+      Navigator.of(context).pop(); // Remove loading dialog
+      if (result['success'] && result['data'] != null) {
+        final conversation = ChatConversation.fromJson(result['data']);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatDetailScreen(
+              conversation: conversation,
+              currentUserId: userId,
+              currentUserRole: userRole,
+            ),
+          ),
+        );
+      } else {
+        throw Exception(result['message'] ?? 'Failed to start chat');
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // Remove loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to start chat: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 }

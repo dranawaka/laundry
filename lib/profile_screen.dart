@@ -3,6 +3,7 @@ import 'api_service.dart';
 import 'notification_test_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'fcm_service.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -199,6 +200,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   String userName = '';
   String userEmail = '';
   String userPhone = '';
+  String userAddress = '';
+  String userCity = '';
+  String userState = '';
+  String userZip = '';
+  String userCountry = '';
+  int? userId;
 
   @override
   void initState() {
@@ -207,12 +214,46 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
+    try {
+      // Get userId from SharedPreferences first
+      final prefs = await SharedPreferences.getInstance();
+      final userIdString = prefs.getString('user_id');
+      if (userIdString == null) throw Exception('No userId in SharedPreferences');
+      // Fetch full profile from backend
+      final userData = await ApiService.getUserProfileFromBackend(userIdString);
+      if (userData != null) {
+        setState(() {
+          userName = userData['name'] ?? '';
+          userEmail = userData['email'] ?? '';
+          userPhone = userData['phone'] ?? '';
+          userAddress = userData['address'] ?? '';
+          userCity = userData['city'] ?? '';
+          userState = userData['state'] ?? '';
+          userZip = userData['zipCode'] ?? '';
+          userCountry = userData['country'] ?? '';
+          userId = int.tryParse(userData['id']?.toString() ?? '');
+        });
+        print('Loaded user data from backend - Name: $userName, Email: $userEmail, Phone: $userPhone, Address: $userAddress, City: $userCity, State: $userState, Zip: $userZip, Country: $userCountry, UserId: $userId');
+        return;
+      }
+    } catch (e) {
+      print('Error loading user data from backend: $e');
+    }
+    // Fallback to SharedPreferences if backend fails
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       userName = prefs.getString('user_name') ?? '';
       userEmail = prefs.getString('user_email') ?? '';
       userPhone = prefs.getString('user_phone') ?? '';
+      userAddress = prefs.getString('user_address') ?? '';
+      userCity = prefs.getString('user_city') ?? '';
+      userState = prefs.getString('user_state') ?? '';
+      userZip = prefs.getString('user_zip') ?? '';
+      userCountry = prefs.getString('user_country') ?? '';
+      final userIdString = prefs.getString('user_id');
+      userId = int.tryParse(userIdString ?? '');
     });
+    print('Loaded user data from SharedPreferences (backend failed)');
   }
 
   @override
@@ -237,26 +278,75 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 24),
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                shape: BoxShape.circle,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 24),
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person, size: 60, color: Colors.grey),
               ),
-              child: const Icon(Icons.person, size: 60, color: Colors.grey),
-            ),
-            const SizedBox(height: 32),
-            _infoTile('Name', userName.isNotEmpty ? userName : '-'),
-            const SizedBox(height: 16),
-            _infoTile('Email address', userEmail.isNotEmpty ? userEmail : '-'),
-            const SizedBox(height: 16),
-            _infoTile('Phone number', userPhone.isNotEmpty ? userPhone : '-'),
-          ],
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                icon: Icon(Icons.edit),
+                label: Text('Edit Profile'),
+                onPressed: () async {
+                  if (userId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('User ID not found. Please log in again.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                  final updated = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProfileScreen(
+                        initialProfile: {
+                          "name": userName,
+                          "email": userEmail,
+                          "phone": userPhone,
+                          "address": userAddress,
+                          "city": userCity,
+                          "state": userState,
+                          "zipCode": userZip,
+                          "country": userCountry,
+                        },
+                        userId: userId!,
+                      ),
+                    ),
+                  );
+                  if (updated == true) {
+                    await _loadUserData();
+                  }
+                },
+              ),
+              const SizedBox(height: 32),
+              _infoTile('Name', userName.isNotEmpty ? userName : '-'),
+              const SizedBox(height: 16),
+              _infoTile('Email address', userEmail.isNotEmpty ? userEmail : '-'),
+              const SizedBox(height: 16),
+              _infoTile('Phone number', userPhone.isNotEmpty ? userPhone : '-'),
+              const SizedBox(height: 16),
+              _infoTile('Address', userAddress.isNotEmpty ? userAddress : '-'),
+              const SizedBox(height: 16),
+              _infoTile('City', userCity.isNotEmpty ? userCity : '-'),
+              const SizedBox(height: 16),
+              _infoTile('State', userState.isNotEmpty ? userState : '-'),
+              const SizedBox(height: 16),
+              _infoTile('Zip Code', userZip.isNotEmpty ? userZip : '-'),
+              const SizedBox(height: 16),
+              _infoTile('Country', userCountry.isNotEmpty ? userCountry : '-'),
+            ],
+          ),
         ),
       ),
     );
