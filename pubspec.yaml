@@ -46,7 +46,6 @@ dependencies:
   geolocator: ^14.0.1  # For location services
   firebase_core: ^3.14.0  # Firebase Core
   firebase_messaging: ^15.2.7  # Firebase Cloud Messaging
-  flutter_local_notifications: ^16.1.0  # Local notifications
   intl: ^0.19.0  # For internationalization and number formatting
   url_launcher: ^6.3.0  # For opening URLs, making calls, and launching maps
   image_picker: ^1.0.0  # For picking images from gallery/camera

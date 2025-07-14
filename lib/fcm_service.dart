@@ -3,14 +3,11 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'package:http/http.dart' as http;
 import 'config.dart';
-import 'chat_detail_screen.dart';
-import 'chat_models.dart';
 
 // Top-level function to handle background messages
 @pragma('vm:entry-point')
@@ -19,77 +16,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Handling a background message: ${message.messageId}');
 }
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-
-Future<void> setupFlutterNotifications(BuildContext context) async {
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  final InitializationSettings initializationSettings =
-      InitializationSettings(android: initializationSettingsAndroid);
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) async {
-      final payload = response.payload;
-      if (payload != null && payload.isNotEmpty) {
-        final conversationId = int.tryParse(payload);
-        if (conversationId != null) {
-          // Fetch conversation details and navigate
-          final user = await ApiService.getCurrentUser();
-          final userId = int.tryParse(user['id'] ?? '') ?? 0;
-          final userRole = user['role'] ?? '';
-          // TODO: Optionally fetch the full conversation object
-          // ignore: use_build_context_synchronously
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => ChatDetailScreen(
-              conversation: ChatConversation(
-                id: conversationId,
-                customerId: 0,
-                customerName: '',
-                laundryId: 0,
-                laundryName: '',
-                lastMessage: null,
-                unreadCount: 0,
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-              ),
-              currentUserId: userId,
-              currentUserRole: userRole,
-            ),
-          ));
-        }
-      }
-    },
-  );
-}
-
-void showChatNotification(RemoteMessage message) {
-  final notification = message.notification;
-  final data = message.data;
-  flutterLocalNotificationsPlugin.show(
-    notification.hashCode,
-    notification?.title ?? 'New Message',
-    notification?.body ?? '',
-    NotificationDetails(
-      android: AndroidNotificationDetails(
-        'chat_channel',
-        'Chat Messages',
-        channelDescription: 'Channel for chat message notifications',
-        importance: Importance.max,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-      ),
-    ),
-    payload: data['conversationId']?.toString() ?? '', // Pass conversationId for navigation
-  );
-}
-
 class FCMService {
   static final FCMService _instance = FCMService._internal();
   factory FCMService() => _instance;
   FCMService._internal();
 
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   String? _fcmToken;
 
   // Getter for FCM token
@@ -98,67 +30,22 @@ class FCMService {
   // Initialize FCM service
   Future<void> initialize() async {
     try {
-      // Initialize Firebase
-      await Firebase.initializeApp();
-
+      print('🔵 === FCM SERVICE INITIALIZATION ===');
+      
       // Set background message handler
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-      // Initialize local notifications
-      await _initializeLocalNotifications();
-
-      // Request notification permissions
-      await _requestNotificationPermissions();
-
       // Get FCM token
       await _getFCMToken();
-
-      // Set up message handlers
+      
+      // Setup message handlers
       _setupMessageHandlers();
-
-      print('FCM Service initialized successfully');
+      
+      print('✅ FCM Service initialized successfully');
+      print('=== END FCM SERVICE INITIALIZATION ===');
     } catch (e) {
-      print('Error initializing FCM Service: $e');
+      print('❌ Error initializing FCM service: $e');
     }
-  }
-
-  // Initialize local notifications
-  Future<void> _initializeLocalNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-
-    await _localNotifications.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
-  }
-
-  // Request notification permissions
-  Future<void> _requestNotificationPermissions() async {
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-
-    print('User granted permission: ${settings.authorizationStatus}');
   }
 
   // Get FCM token
@@ -251,44 +138,11 @@ class FCMService {
 
   // Show local notification
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'laundry_app_channel',
-      'Laundry App Notifications',
-      channelDescription: 'Notifications for laundry service app',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const DarwinNotificationDetails iOSPlatformChannelSpecifics =
-        DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-      iOS: iOSPlatformChannelSpecifics,
-    );
-
-    await _localNotifications.show(
-      message.hashCode,
-      message.notification?.title ?? 'New Notification',
-      message.notification?.body ?? '',
-      platformChannelSpecifics,
-      payload: json.encode(message.data),
-    );
-  }
-
-  // Handle notification tap
-  void _onNotificationTapped(NotificationResponse response) {
-    if (response.payload != null) {
-      final data = json.decode(response.payload!);
-      _handleNotificationTap(RemoteMessage(data: data));
-    }
+    // For now, just print the notification. 
+    // The system will show the notification automatically when the app is in background
+    print('📱 Notification received: ${message.notification?.title}');
+    print('📱 Body: ${message.notification?.body}');
+    print('📱 Data: ${message.data}');
   }
 
   // Handle notification tap logic

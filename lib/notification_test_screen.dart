@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fcm_service.dart';
 import 'api_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'shared_preferences.dart';
