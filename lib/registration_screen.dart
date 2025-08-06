@@ -66,10 +66,43 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (value == null || value.trim().isEmpty) {
       return 'Email is required';
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) {
+    
+    // Trim whitespace
+    value = value.trim();
+    
+    // Check for basic email format with improved regex
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(value)) {
       return 'Please enter a valid email address';
     }
+    
+    // Check for minimum length
+    if (value.length < 5) {
+      return 'Email address is too short';
+    }
+    
+    // Check for maximum length (RFC 5321 standard)
+    if (value.length > 254) {
+      return 'Email address is too long';
+    }
+    
+    // Check for valid domain structure
+    final parts = value.split('@');
+    if (parts.length != 2) {
+      return 'Invalid email format';
+    }
+    
+    final domain = parts[1];
+    if (domain.length < 3 || !domain.contains('.')) {
+      return 'Invalid domain in email address';
+    }
+    
+    // Check for common invalid domains
+    final invalidDomains = ['example.com', 'test.com', 'localhost'];
+    if (invalidDomains.contains(domain.toLowerCase())) {
+      return 'Please enter a valid email address';
+    }
+    
     return null;
   }
 
@@ -77,10 +110,32 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (value == null || value.trim().isEmpty) {
       return 'Phone number is required';
     }
-    // Basic phone validation - can be enhanced based on your requirements
-    if (value.trim().length < 10) {
+    
+    // Remove all non-digit characters for validation
+    final digitsOnly = value.replaceAll(RegExp(r'[^\d]'), '');
+    
+    // Check minimum length (10 digits for most countries)
+    if (digitsOnly.length < 10) {
       return 'Phone number must be at least 10 digits';
     }
+    
+    // Check maximum length (15 digits for international numbers)
+    if (digitsOnly.length > 15) {
+      return 'Phone number is too long';
+    }
+    
+    // Check for valid phone number patterns
+    // Allow common formats: +1-234-567-8900, (123) 456-7890, 123-456-7890, 1234567890
+    final phoneRegex = RegExp(r'^[\+]?[1-9][\d]{0,15}$');
+    if (!phoneRegex.hasMatch(digitsOnly)) {
+      return 'Please enter a valid phone number';
+    }
+    
+    // Check for repeated digits (likely invalid)
+    if (RegExp(r'(\d)\1{9,}').hasMatch(digitsOnly)) {
+      return 'Phone number appears to be invalid';
+    }
+    
     return null;
   }
 
@@ -88,9 +143,51 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+    
+    // Check minimum length
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters long';
     }
+    
+    // Check maximum length
+    if (value.length > 128) {
+      return 'Password is too long (maximum 128 characters)';
+    }
+    
+    // Check for at least one uppercase letter
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    
+    // Check for at least one lowercase letter
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    
+    // Check for at least one digit
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'Password must contain at least one number';
+    }
+    
+    // Check for at least one special character
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
+      return 'Password must contain at least one special character (!@#\$%^&*)';
+    }
+    
+    // Check for common weak passwords
+    final weakPasswords = [
+      'password', '123456', 'qwerty', 'abc123', 'password123',
+      'admin', 'letmein', 'welcome', 'monkey', 'dragon'
+    ];
+    if (weakPasswords.contains(value.toLowerCase())) {
+      return 'Please choose a stronger password';
+    }
+    
+    // Check for sequential characters
+    if (RegExp(r'(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz|123|234|345|456|567|678|789|890)', caseSensitive: false).hasMatch(value)) {
+      return 'Password contains sequential characters';
+    }
+    
     return null;
   }
 

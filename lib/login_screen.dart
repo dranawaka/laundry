@@ -16,8 +16,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController(text: 'd@user.com');
-  final TextEditingController _passwordController = TextEditingController(text: '1qaz!Z');
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   String _selectedRole = 'CUSTOMER';
@@ -141,9 +141,36 @@ class _LoginScreenState extends State<LoginScreen> {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your email';
                             }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                              return 'Please enter a valid email';
+                            
+                            // Trim whitespace
+                            value = value.trim();
+                            
+                            // Check for basic email format
+                            if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
+                              return 'Please enter a valid email address';
                             }
+                            
+                            // Check for minimum length
+                            if (value.length < 5) {
+                              return 'Email address is too short';
+                            }
+                            
+                            // Check for maximum length
+                            if (value.length > 254) {
+                              return 'Email address is too long';
+                            }
+                            
+                            // Check for valid domain
+                            final parts = value.split('@');
+                            if (parts.length != 2) {
+                              return 'Invalid email format';
+                            }
+                            
+                            final domain = parts[1];
+                            if (domain.length < 3 || !domain.contains('.')) {
+                              return 'Invalid domain in email address';
+                            }
+                            
                             return null;
                           },
                         ),
