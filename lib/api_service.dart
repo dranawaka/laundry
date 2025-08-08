@@ -741,6 +741,50 @@ class ApiService {
     }
   }
 
+  // Get all active laundries (fallback when location is not available)
+  static Future<Map<String, dynamic>> getAllLaundries() async {
+    try {
+      final url = '${Config.getApiBaseUrl()}/laundry/services/active';
+      print('Getting all active laundries from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
+      
+      print('Get all laundries response: ${response.statusCode}');
+      print('Get all laundries response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': data,
+          'message': 'All laundries fetched successfully',
+        };
+      } else {
+        final errorData = jsonDecode(response.body);
+        String errorMessage = 'Failed to fetch laundries';
+        
+        if (errorData is Map<String, dynamic>) {
+          errorMessage = errorData['message'] ?? errorData['error'] ?? errorMessage;
+        }
+        
+        return {
+          'success': false,
+          'message': errorMessage,
+          'statusCode': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('Error getting all laundries: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> updateOrderStatus(int orderId, String status) async {
     try {
       final url = '${Config.getApiBaseUrl()}/orders/$orderId/update-status';
